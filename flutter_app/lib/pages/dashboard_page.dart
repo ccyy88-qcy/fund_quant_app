@@ -328,7 +328,9 @@ class _DashboardPageState extends State<DashboardPage> {
         else if (signal.contains('关注')) sc = AppTheme.yellow;
         else sc = AppTheme.grey;
 
-        return Container(
+        return GestureDetector(
+          onTap: () => _showEtfDetail(f),
+          child: Container(
           margin: const EdgeInsets.only(bottom: 6),
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
@@ -391,9 +393,20 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
               if (advice.isNotEmpty) ...[const SizedBox(height: 2), Text(advice, style: TextStyle(color: sc.withOpacity(0.8), fontSize: 10))],
             ],
-          ),
-        );
+          ));
+        }
       }).toList(),
+    );
+  }
+
+  void _showEtfDetail(Map<String, dynamic> f) async {
+    final code = f['code'] ?? '';
+    if (code.isEmpty) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.bgDark,
+      builder: (_) => _EtfDetailSheet(code: code, name: f['name'] ?? code),
     );
   }
 
@@ -518,6 +531,114 @@ class _DashboardPageState extends State<DashboardPage> {
           const SizedBox(height: 8),
           Text(text, style: const TextStyle(color: AppTheme.textSecondary)),
           if (sub.isNotEmpty) ...[const SizedBox(height: 4), Text(sub, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12))],
+        ],
+      ),
+    );
+  }
+}
+
+/// ETF详情底部弹出面板
+class _EtfDetailSheet extends StatefulWidget {
+  final String code;
+  final String name;
+  const _EtfDetailSheet({required this.code, required this.name});
+
+  @override
+  State<_EtfDetailSheet> createState() => _EtfDetailSheetState();
+}
+
+class _EtfDetailSheetState extends State<_EtfDetailSheet> {
+  final _api = ApiService();
+  Map<String, dynamic>? _data;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final result = await _api.analyzeEtf(widget.code).timeout(const Duration(seconds: 60));
+      if (!mounted) return;
+      setState(() { _data = result; _loading = false; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.65,
+      minChildSize: 0.4,
+      maxChildSize: 0.85,
+      expand: false,
+      builder: (_, scrollCtrl) => Container(
+        decoration: const BoxDecoration(
+          color: AppTheme.bgDark,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: _loading
+            ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+            : _error != null
+                ? Center(child: Text('加载失败', style: const TextStyle(color: AppTheme.textSecondary)))
+                : ListView(
+                    controller: scrollCtrl,
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      // 拖拽条
+                      Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppTheme.textSecondary.withOpacity(0.3), borderRadius: BorderRadius.circular(2)))),
+                      const SizedBox(height: 12),
+                      Text(widget.name, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text('${widget.code}', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                      const SizedBox(height: 16),
+                      _buildRow('最新价', '${_data?['price'] ?? '-'}'),
+                      _buildRow('RSI(14)', '${_data?['rsi_14'] ?? '-'}'),
+                      if (_data?['ma'] != null) ...[
+                        _buildRow('MA5', '${(_data!['ma'] as Map)['ma5'] ?? '-'}'),
+                        _buildRow('MA10', '${(_data!['ma'] as Map)['ma10'] ?? '-'}'),
+                        _buildRow('MA60', '${(_data!['ma'] as Map)['ma60'] ?? '-'}'),
+                      ],
+                      if (_data?['macd'] != null) ...[
+                        const SizedBox(height: 8),
+                        const Text('MACD', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w600)),
+                        _buildRow('DIF', '${(_data!['macd'] as Map)['dif'] ?? '-'}'),
+                        _buildRow('DEA', '${(_data!['macd'] as Map)['dea'] ?? '-'}'),
+                        _buildRow('MACD柱', '${(_data!['macd'] as Map)['bar'] ?? '-'}'),
+                      ],
+                      if (_data?['bollinger'] != null) ...[
+                        const SizedBox(height: 8),
+                        const Text('布林带', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w600)),
+                        _buildRow('上轨', '${(_data!['bollinger'] as Map)['upper'] ?? '-'}'),
+                        _buildRow('中轨', '${(_data!['bollinger'] as Map)['mid'] ?? '-'}'),
+                        _buildRow('下轨', '${(_data!['bollinger'] as Map)['lower'] ?? '-'}'),
+                      ],
+                      if (_data?['signal'] != null) ...[
+                        const SizedBox(height: 8),
+                        const Text('信号', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w600)),
+                        _buildRow('判定', '${(_data!['signal'] as Map)['signal'] ?? ''}'),
+                        _buildRow('详情', '${(_data!['signal'] as Map)['detail'] ?? ''}'),
+                      ],
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+      ),
+    );
+  }
+
+  Widget _buildRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text(label, style: const TextStyle(color: AppTheme.textSecondary)),
+          const SizedBox(width: 80),
+          const SizedBox(width: 12),
+          Expanded(child: Text(value, style: const TextStyle(color: AppTheme.textPrimary))),
         ],
       ),
     );

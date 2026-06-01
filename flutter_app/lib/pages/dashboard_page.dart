@@ -354,7 +354,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         if (flow != null) ...[const SizedBox(width: 8), Text('主力${flow >= 0 ? '+' : ''}${flow.toStringAsFixed(1)}%', style: TextStyle(color: flow >= 0 ? AppTheme.green : AppTheme.red, fontSize: 10))],
                       ],
                     ),
-                    if (advice.isNotEmpty) Text(advice, style: const TextStyle(color: sc, fontSize: 10)),
+                    if (advice.isNotEmpty) Text(advice, style: TextStyle(color: sc, fontSize: 10)),
                   ],
                 ),
               ),

@@ -390,6 +390,21 @@ class _CandlestickPainter extends CustomPainter {
     final n = kline.length;
     if (n == 0) return;
     final candleW = chartW / n;
+
+    // 检测是否为NAV数据（OHLC全相同）
+    bool isNav = false;
+    if (n > 2) {
+      int sameCount = 0;
+      for (int i = 0; i < n && i < 10; i++) {
+        final k = kline[i];
+        if ((k['open'] as num) == (k['close'] as num) &&
+            (k['high'] as num) == (k['low'] as num)) {
+          sameCount++;
+        }
+      }
+      isNav = sameCount == (n < 10 ? n : 10);
+    }
+
     final gap = candleW * 0.25;
     final bodyW = candleW - gap * 2;
     final minBodyW = 1.0;
@@ -434,7 +449,37 @@ class _CandlestickPainter extends CustomPainter {
       }
     }
 
+    // ── NAV模式：折线图（无OHLC的基金净值）──
+    if (isNav) {
+      final linePaint = Paint()
+        ..color = const Color(0xFF00D4FF)
+        ..strokeWidth = 1.5
+        ..style = PaintingStyle.stroke;
+      final linePath = Path();
+      bool started = false;
+      for (int i = 0; i < n; i++) {
+        final close = (kline[i]['close'] as num).toDouble();
+        final x = 50 + i * candleW + candleW / 2;
+        final y = chartH - (close - minPrice) / range * chartH;
+        if (!started) {
+          linePath.moveTo(x, y);
+          started = true;
+        } else {
+          linePath.lineTo(x, y);
+        }
+      }
+      if (started) canvas.drawPath(linePath, linePaint);
+
+      // 标注"净值"标签
+      final navTp = TextPainter(
+        text: TextSpan(text: '净值', style: TextStyle(color: const Color(0xFF00D4FF), fontSize: 9)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      navTp.paint(canvas, Offset(54, 4));
+    }
+
     // ── 蜡烛线 ──
+    if (!isNav) {
     for (int i = 0; i < n; i++) {
       final k = kline[i];
       final open = (k['open'] as num).toDouble();
@@ -464,6 +509,7 @@ class _CandlestickPainter extends CustomPainter {
           Paint()..color = bodyColor,
         );
       }
+    }
     }
 
     // ── MA线 ──

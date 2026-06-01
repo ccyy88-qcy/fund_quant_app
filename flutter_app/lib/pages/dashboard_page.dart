@@ -265,11 +265,11 @@ class _DashboardPageState extends State<DashboardPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: AppTheme.neonGradient.withOpacity(0.08) as Gradient? ?? LinearGradient(
-          colors: [AppTheme.primary.withOpacity(0.08), AppTheme.accent.withOpacity(0.08)],
+        gradient: LinearGradient(
+          colors: [AppTheme.primary.withValues(alpha: 0.08), AppTheme.accent.withValues(alpha: 0.08)],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.primary.withOpacity(0.2), width: 0.5),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2), width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

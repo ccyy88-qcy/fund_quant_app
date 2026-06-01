@@ -38,8 +38,8 @@ class AppTheme {
         ),
         iconTheme: IconThemeData(color: accent),
       ),
-      cardTheme: CardThemeData(
-        color: bgCard,
+      cardTheme: CardTheme(
+        color: AppTheme.bgCard,
         elevation: 4,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),

@@ -222,30 +222,20 @@ def get_market_index() -> list:
 # ─── 申万行业涨跌 ───
 
 def get_sector_performance() -> list:
-    """获取申万一级行业涨跌排行"""
+    """获取行业板块涨跌排行（东方财富行业板块，一次性接口）"""
     try:
-        df = ak.index_hist_sw(symbol='801010', period='day')
-        if df is None or len(df) < 2:
+        df = ak.stock_board_industry_name_em()
+        if df is None or len(df) == 0:
             return []
-        # 改用批量获取
-        sectors_code = [f'801{i:03d}' for i in range(10, 50)]
         results = []
-        for sc in sectors_code:
-            try:
-                sdf = ak.index_hist_sw(symbol=sc, period='day')
-                if sdf is not None and len(sdf) >= 2:
-                    latest = sdf.iloc[-1]
-                    prev = sdf.iloc[-2]
-                    chg = (latest['close'] - prev['close']) / prev['close'] * 100
-                    results.append({
-                        'code': sc,
-                        'name': latest.get('name', sc),
-                        'change': round(float(chg), 2),
-                        'price': round(float(latest['close']), 2),
-                    })
-                time.sleep(0.5)
-            except:
-                continue
-        return sorted(results, key=lambda x: x['change'], reverse=True)
+        for _, row in df.iterrows():
+            results.append({
+                'code': str(row.get('板块代码', '')),
+                'name': str(row.get('板块名称', '')),
+                'change': round(float(row.get('涨跌幅', 0)), 2),
+                'price': round(float(row.get('最新价', 0)), 2),
+                'amount': float(row.get('成交额', 0)),
+            })
+        return sorted(results, key=lambda x: x['change'], reverse=True)[:20]
     except:
         return []

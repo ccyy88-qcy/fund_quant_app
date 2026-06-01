@@ -1,5 +1,8 @@
 """基金真实市场扫描引擎 — 全市场ETF实时扫描+评分+建仓推荐"""
+import os
+import sys
 import time
+import contextlib
 import numpy as np
 import pandas as pd
 import akshare as ak
@@ -8,6 +11,21 @@ from typing import Optional
 
 from .indicators import calc_ma, calc_rsi, calc_macd, calc_bollinger
 from .risk_metrics import max_drawdown
+
+
+@contextlib.contextmanager
+def _suppress_output():
+    """抑制akshare的tqdm进度条输出，避免uvicorn中Broken pipe"""
+    with open(os.devnull, 'w') as devnull:
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        sys.stdout = devnull
+        sys.stderr = devnull
+        try:
+            yield
+        finally:
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
 
 
 def scan_etf_market(top_n: int = 20, min_volume_ratio: float = 0.5) -> list:
@@ -25,9 +43,10 @@ def scan_etf_market(top_n: int = 20, min_volume_ratio: float = 0.5) -> list:
     Returns:
         评分排序后的ETF列表（真实数据）
     """
-    # 1. 拉实时ETF行情
+    # 1. 拉实时ETF行情（抑制tqdm进度条，避免uvicorn Broken pipe）
     try:
-        spot_df = ak.fund_etf_spot_em()
+        with _suppress_output():
+            spot_df = ak.fund_etf_spot_em()
     except Exception as e:
         return [{'error': f'获取ETF行情失败: {str(e)}'}]
 
@@ -43,6 +62,10 @@ def scan_etf_market(top_n: int = 20, min_volume_ratio: float = 0.5) -> list:
     spot_df['主力净流入占比'] = pd.to_numeric(spot_df['主力净流入-净占比'], errors='coerce')
 
     # 过滤：量比达标 + 成交额不为0
+    # 过滤货币基金/债券ETF（名称含关键词的剔除）
+    exclude_keywords = ['添益', '日利', '货币', '国债', '地方债', '可转', '国开', '农发']
+    spot_df = spot_df[~spot_df['名称'].str.contains('|'.join(exclude_keywords), na=False)].copy()
+
     candidates = spot_df[
         (spot_df['量比'].fillna(0) >= min_volume_ratio) &
         (spot_df['成交额'].fillna(0) > 0)

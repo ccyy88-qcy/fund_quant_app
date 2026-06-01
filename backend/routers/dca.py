@@ -38,21 +38,32 @@ async def dca_backtest(
 ):
     """定投回测"""
     days = min(years * 250, 1500)
-    kline = df.get_kline(code, days)
-    if not kline:
+    raw_kline = df.get_kline(code, days)
+    if not raw_kline:
         return {'error': f'基金{code}数据获取失败'}
+
+    # 转list→收盘价Series
+    import pandas as pd
+    closes = pd.Series([float(d['close']) for d in raw_kline if float(d.get('close', 0)) > 0])
 
     result = {}
     if strategy == 'fixed':
-        result = dca.dca_fixed_amount(kline, amount, frequency)
+        result = dca.dca_fixed_amount(closes, frequency_days=frequency, amount_per_period=amount)
     elif strategy == 'ma_based':
-        result = dca.dca_ma_strategy(kline, amount, frequency, ma_period, ma_multiplier)
+        result = dca.dca_ma_strategy(closes, base_amount=amount, frequency_days=frequency,
+                                      ma_period=ma_period, multiplier=ma_multiplier)
     elif strategy == 'valuation':
-        result = dca.dca_valuation_strategy(kline, amount, frequency, ma_period)
+        result = dca.dca_valuation_strategy(closes, percentile_series=pd.Series([50]*len(closes)),
+                                             base_amount=amount, frequency_days=frequency,
+                                             lower_threshold=30.0, upper_threshold=70.0)
     elif strategy == 'target_profit':
-        result = dca.dca_target_take_profit(kline, amount, frequency, target_return)
+        result = dca.dca_target_take_profit(closes, base_dca_func=dca.dca_fixed_amount,
+                                             target_return=target_return,
+                                             frequency_days=frequency, amount_per_period=amount)
     elif strategy == 'trailing_stop':
-        result = dca.dca_trailing_stop_profit(kline, amount, frequency, trailing_drawdown)
+        result = dca.dca_trailing_stop_profit(closes, base_dca_func=dca.dca_fixed_amount,
+                                               trailing_drawdown=trailing_drawdown,
+                                               frequency_days=frequency, amount_per_period=amount)
     else:
         return {'error': f'未知策略: {strategy}'}
 

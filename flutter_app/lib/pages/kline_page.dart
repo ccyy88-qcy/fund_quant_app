@@ -4,7 +4,8 @@ import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 
 class KlinePage extends StatefulWidget {
-  const KlinePage({super.key});
+  final String? initialCode;
+  const KlinePage({super.key, this.initialCode});
 
   @override
   State<KlinePage> createState() => _KlinePageState();
@@ -18,6 +19,15 @@ class _KlinePageState extends State<KlinePage> {
   bool _loading = false;
   String _period = '1月';
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialCode != null && widget.initialCode!.isNotEmpty) {
+      _codeController.text = widget.initialCode!;
+      _loadKline(widget.initialCode!);
+    }
+  }
 
   @override
   void dispose() {

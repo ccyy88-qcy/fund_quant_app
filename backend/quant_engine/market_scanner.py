@@ -581,3 +581,43 @@ def scan_golden_cross_candidates(top_n: int = 10) -> list:
 
     results.sort(key=lambda x: x.get('total_score', 0), reverse=True)
     return results[:top_n]
+
+
+# ─── 指数PE/PB估值查询 ───
+
+# ETF名称→指数代码映射（常见宽基/行业ETF）
+_ETF_INDEX_MAP = [
+    ('沪深300', '000300'), ('中证500', '000905'), ('中证1000', '000852'),
+    ('上证50', '000016'), ('科创50', '000688'), ('科创100', '000858'),
+    ('创业板', '399006'), ('深证100', '399330'),
+    ('恒生科技', '931069'), ('恒生互联网', '931069'), ('恒生', '931069'),
+    ('中概互联', '930901'), ('中概互联网', '930901'),
+    ('半导体', '931865'), ('芯片', '931865'), ('电子', '931865'),
+    ('通信', '931079'), ('5G', '931079'),
+    ('新能源', '931580'), ('光伏', '931580'),
+    ('军工', '931580'), ('国防', '931580'),
+    ('医药', '931580'), ('医疗', '931580'),
+    ('消费', '931580'), ('白酒', '931580'),
+    ('红利', '931580'), ('银行', '931580'),
+    ('证券', '931580'), ('保险', '931580'),
+    ('地产', '931580'), ('基建', '931580'),
+]
+
+
+def get_etf_pe_data(etf_name: str) -> dict:
+    """获取ETF对应指数的PE/PB估值数据"""
+    import akshare as ak
+    for kw, idx_code in _ETF_INDEX_MAP:
+        if kw in etf_name:
+            try:
+                df = ak.stock_zh_index_value_csindex(symbol=idx_code)
+                if df is not None and len(df) > 0:
+                    row = df.iloc[-1]
+                    pe = float(row.iloc[6]) if row.iloc[6] not in (None, '', '-') else None
+                    pe2 = float(row.iloc[7]) if row.iloc[7] not in (None, '', '-') else None
+                    name = str(row.iloc[4]) if row.iloc[4] else ''
+                    return {'pe': pe, 'pe_ttm': pe2, 'index_name': name, 'source': 'csindex'}
+            except Exception:
+                pass
+            break
+    return {'pe': None, 'pe_ttm': None, 'index_name': '', 'source': 'none'}

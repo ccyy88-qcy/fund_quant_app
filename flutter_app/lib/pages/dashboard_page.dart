@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../main.dart';
+import 'kline_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -420,13 +421,12 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _showEtfDetail(Map<String, dynamic> f) async {
     final code = f['code'] ?? '';
+    final name = f['name'] ?? code;
     if (code.isEmpty) return;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppTheme.bgDark,
-      builder: (_) => _EtfDetailSheet(code: code, name: f['name'] ?? code),
-    );
+    // 跳转到K线分析Tab，传入基金代码
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => KlinePage(initialCode: code),
+    ));
   }
 
   Widget _miniChip(String label, String value, Color color) {

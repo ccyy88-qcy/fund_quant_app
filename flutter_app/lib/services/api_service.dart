@@ -6,7 +6,7 @@ class ApiService {
   ApiService._internal();
 
   // 默认地址，用户可在设置中修改
-  String baseUrl = 'http://192.168.1.100:8000';
+  String baseUrl = 'http://10.24.108.16:8000';
   late Dio _dio;
 
   void init() {

@@ -36,4 +36,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fund-quant-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk

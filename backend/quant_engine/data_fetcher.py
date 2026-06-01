@@ -126,6 +126,17 @@ def get_kline(code: str, days: int = 500) -> list:
                     'close': float(d['close']),
                     'volume': float(d.get('volume', 0)),
                 })
+            # 检测除权除息跳变并做前复权
+            for i in range(1, len(kline)):
+                prev_c = float(kline[i-1]['close'])
+                curr_c = float(kline[i]['close'])
+                if prev_c > 0 and (prev_c - curr_c) / prev_c > 0.12:
+                    ratio = curr_c / prev_c  # 复权比例
+                    # 将除权日之前的所有价格按比例下调（前复权）
+                    for j in range(i):
+                        for field in ['open', 'high', 'low', 'close']:
+                            kline[j][field] = round(float(kline[j][field]) * ratio, 4)
+                    break
     except:
         pass
 

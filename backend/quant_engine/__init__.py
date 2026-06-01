@@ -37,3 +37,17 @@ from .custom_backtest import (
     run_custom_strategy, optimize_params,
     describe_strategy, brinson_attribution, multi_asset_backtest,
 )
+from .smart_analysis import (
+    calc_technical_score, calc_valuation_score, calc_momentum_score,
+    calc_risk_score, calc_comprehensive_rating, calc_investment_advice,
+    generate_full_report,
+)
+from .dca_backtest import (
+    dca_fixed_amount, dca_ma_strategy, dca_valuation_strategy,
+    dca_target_take_profit, dca_trailing_stop_profit,
+    compare_dca_strategies, dca_equity_curve,
+)
+from .market_sentiment import (
+    calc_advance_decline, calc_volume_analysis, calc_market_sentiment,
+    calc_build_signal, score_funds,
+)

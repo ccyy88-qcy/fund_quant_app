@@ -447,7 +447,7 @@ def scan_golden_cross_candidates(top_n: int = 10) -> list:
     exclude_keywords = ['添益', '日利', '货币', '国债', '地方债', '可转', '国开', '农发']
     spot_df = spot_df[~spot_df['名称'].str.contains('|'.join(exclude_keywords), na=False)].copy()
     spot_df = spot_df[spot_df['成交额'].fillna(0) > 5e7].copy()  # 成交额>5000万
-    top_etfs = spot_df.sort_values('成交额', ascending=False).head(top_n * 5)
+    top_etfs = spot_df.sort_values('成交额', ascending=False).head(top_n * 10)
 
     for _, row in top_etfs.iterrows():
         code = str(row['代码']).strip().zfill(6)

@@ -99,4 +99,139 @@ class ApiService {
     final res = await _dio.get('/api/funds/watchlist/realtime');
     return res.data['data'] ?? [];
   }
+
+  // ═══════════════════════════════════════
+  // 多因子选股
+  // ═══════════════════════════════════════
+
+  /// 因子分析
+  Future<Map<String, dynamic>> getFactorAnalysis() async {
+    final res = await _dio.get('/api/factors/analysis');
+    return res.data['data'] ?? {};
+  }
+
+  /// IC历史序列
+  Future<Map<String, dynamic>> getIcHistory() async {
+    final res = await _dio.get('/api/factors/ic-history');
+    return res.data['data'] ?? {};
+  }
+
+  /// 分层回测
+  Future<Map<String, dynamic>> getLayerBacktest(
+      String factorName, int layers) async {
+    final res = await _dio.get('/api/factors/layer-backtest',
+        queryParameters: {'factor_name': factorName, 'layers': layers});
+    return res.data['data'] ?? {};
+  }
+
+  // ═══════════════════════════════════════
+  // 行业轮动
+  // ═══════════════════════════════════════
+
+  /// 宏观周期
+  Future<Map<String, dynamic>> getMacroCycle() async {
+    final res = await _dio.get('/api/rotation/macro-cycle');
+    return res.data['data'] ?? {};
+  }
+
+  /// 行业评分
+  Future<List<dynamic>> getSectorScores() async {
+    final res = await _dio.get('/api/rotation/sector-scores');
+    return res.data['data'] ?? [];
+  }
+
+  /// 轮动信号
+  Future<List<dynamic>> getRotationSignals({int topN = 10}) async {
+    final res = await _dio.get('/api/rotation/rotation-signals',
+        queryParameters: {'top_n': topN});
+    return res.data['data'] ?? [];
+  }
+
+  /// 轮动回测
+  Future<Map<String, dynamic>> getRotationBacktest() async {
+    final res = await _dio.get('/api/rotation/rotation-backtest');
+    return res.data['data'] ?? {};
+  }
+
+  // ═══════════════════════════════════════
+  // 资产配置
+  // ═══════════════════════════════════════
+
+  /// 有效前沿
+  Future<Map<String, dynamic>> getEfficientFrontier({int nAssets = 5}) async {
+    final res = await _dio.get('/api/portfolio/efficient-frontier',
+        queryParameters: {'n_assets': nAssets});
+    return res.data['data'] ?? {};
+  }
+
+  /// 优化组合
+  Future<Map<String, dynamic>> optimizePortfolio(
+      {String objective = 'sharpe', int nAssets = 5}) async {
+    final res = await _dio.get('/api/portfolio/optimize', queryParameters: {
+      'objective': objective,
+      'n_assets': nAssets,
+    });
+    return res.data['data'] ?? {};
+  }
+
+  // ═══════════════════════════════════════
+  // 策略回测
+  // ═══════════════════════════════════════
+
+  /// 自定义策略回测
+  Future<Map<String, dynamic>> customBacktest(
+      String code, String strategy, Map<String, dynamic> params) async {
+    final res = await _dio.get('/api/strategy/backtest', queryParameters: {
+      'code': code,
+      'strategy': strategy,
+      'params': params.toString(),
+    });
+    return res.data['data'] ?? {};
+  }
+
+  /// 策略参数优化
+  Future<Map<String, dynamic>> optimizeStrategy(
+      String code, String strategy, String objective) async {
+    final res = await _dio.get('/api/strategy/optimize', queryParameters: {
+      'code': code,
+      'strategy': strategy,
+      'objective': objective,
+    });
+    return res.data['data'] ?? {};
+  }
+
+  /// 策略对比
+  Future<Map<String, dynamic>> strategyComparison(String code) async {
+    final res = await _dio.get('/api/strategy/comparison',
+        queryParameters: {'code': code});
+    return res.data['data'] ?? {};
+  }
+
+  // ═══════════════════════════════════════
+  // 风险分析
+  // ═══════════════════════════════════════
+
+  /// 风险分析总览
+  Future<Map<String, dynamic>> getRiskAnalysis(String code) async {
+    final res = await _dio.get('/api/risk/analysis',
+        queryParameters: {'code': code});
+    return res.data['data'] ?? {};
+  }
+
+  /// VaR分析
+  Future<Map<String, dynamic>> getVarAnalysis(
+      String code, double confidence) async {
+    final res = await _dio.get('/api/risk/var', queryParameters: {
+      'code': code,
+      'confidence': confidence,
+    });
+    return res.data['data'] ?? {};
+  }
+
+  /// 压力测试
+  Future<Map<String, dynamic>> getStressTest(String code) async {
+    final res = await _dio.get('/api/risk/stress-test',
+        queryParameters: {'code': code});
+    return res.data['data'] ?? {};
+  }
 }

@@ -7,7 +7,7 @@ import os, sys
 # 确保能找到quant_engine
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from routers import funds, market
+from routers import funds, market, factors, rotation, portfolio, strategy, risk
 
 app = FastAPI(title='基金全量量化工具', version='1.0.0')
 
@@ -22,6 +22,11 @@ app.add_middleware(
 
 app.include_router(funds.router)
 app.include_router(market.router)
+app.include_router(factors.router)
+app.include_router(rotation.router)
+app.include_router(portfolio.router)
+app.include_router(strategy.router)
+app.include_router(risk.router)
 
 
 @app.get('/api/health')

@@ -3,7 +3,8 @@ import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import 'pages/dashboard_page.dart';
-import 'pages/quant_page.dart';
+import 'pages/quant_home_page.dart';
+import 'pages/strategy_home_page.dart';
 import 'pages/kline_page.dart';
 import 'pages/settings_page.dart';
 
@@ -66,11 +67,12 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
-  final _pages = const [
-    DashboardPage(),
-    QuantPage(),
-    KlinePage(),
-    SettingsPage(),
+  final _pages = [
+    const DashboardPage(),
+    const QuantHomePage(),
+    const StrategyHomePage(),
+    const KlinePage(),
+    const SettingsPage(),
   ];
 
   @override
@@ -95,7 +97,12 @@ class _MainShellState extends State<MainShell> {
             BottomNavigationBarItem(
               icon: Icon(Icons.analytics_outlined),
               activeIcon: Icon(Icons.analytics),
-              label: '量化回测',
+              label: '量化分析',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.auto_graph_outlined),
+              activeIcon: Icon(Icons.auto_graph),
+              label: '策略中心',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.show_chart_outlined),

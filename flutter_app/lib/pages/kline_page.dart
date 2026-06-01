@@ -392,7 +392,9 @@ class _CandlestickPainter extends CustomPainter {
     final candleW = chartW / n;
     final gap = candleW * 0.25;
     final bodyW = candleW - gap * 2;
-    if (bodyW < 1) return;
+    final minBodyW = 1.0;
+    final drawBodyW = bodyW < minBodyW ? minBodyW : bodyW;
+    final drawGap = (candleW - drawBodyW) / 2;
 
     final range = maxPrice - minPrice;
 
@@ -439,7 +441,7 @@ class _CandlestickPainter extends CustomPainter {
       final close = (k['close'] as num).toDouble();
       final high = (k['high'] as num).toDouble();
       final low = (k['low'] as num).toDouble();
-      final x = 50 + i * candleW + gap;
+      final x = 50 + i * candleW + drawGap;
       final isUp = close >= open;
 
       final bodyColor = isUp ? const Color(0xFFF44336) : const Color(0xFF4CAF50);
@@ -451,14 +453,14 @@ class _CandlestickPainter extends CustomPainter {
       final wickPaint = Paint()
         ..color = bodyColor
         ..strokeWidth = 1;
-      canvas.drawLine(Offset(x + bodyW / 2, yPos(high)), Offset(x + bodyW / 2, yPos(low)), wickPaint);
+      canvas.drawLine(Offset(x + drawBodyW / 2, yPos(high)), Offset(x + drawBodyW / 2, yPos(low)), wickPaint);
 
       // 实体
       if (bodyH < 1) {
-        canvas.drawLine(Offset(x, bodyTop), Offset(x + bodyW, bodyTop), wickPaint);
+        canvas.drawLine(Offset(x, bodyTop), Offset(x + drawBodyW, bodyTop), wickPaint);
       } else {
         canvas.drawRect(
-          Rect.fromLTRB(x, bodyTop, x + bodyW, bodyBottom),
+          Rect.fromLTRB(x, bodyTop, x + drawBodyW, bodyBottom),
           Paint()..color = bodyColor,
         );
       }

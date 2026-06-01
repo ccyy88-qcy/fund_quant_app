@@ -86,7 +86,7 @@ def scan_etf_market(top_n: int = 20, min_volume_ratio: float = 0.5) -> list:
         score['turnover'] = round(float(row.get('换手率', 0)), 2)
         score['amplitude'] = round(float(row.get('振幅', 0)), 2)
         score['capital_flow'] = round(float(row.get('主力净流入-净额', 0)), 2)
-        score['capital_flow_pct'] = round(float(row.get('主力净流入-净占比', 0)), 2)
+        score['capital_flow_pct'] = round(float(row.get('主力净流入-净占比', 0)), 2) if pd.notna(row.get('主力净流入-净占比')) else 0
         score['scan_time'] = datetime.now().strftime('%H:%M')
 
         results.append(score)
@@ -300,10 +300,10 @@ def _calc_short_term_score(kline: list, spot_row: pd.Series) -> Optional[dict]:
             'ma20': round(float(ma20), 4),
             'ma60': round(float(ma60), 4),
             'above_ma5_pct': round(float(above_ma5), 2),
-            'above_ma5': current_price > ma5,
-            'above_ma10': current_price > ma10,
-            'above_ma20': current_price > ma20,
-            'above_ma60': current_price > ma60,
+            'above_ma5': bool(current_price > ma5),
+            'above_ma10': bool(current_price > ma10),
+            'above_ma20': bool(current_price > ma20),
+            'above_ma60': bool(current_price > ma60),
         },
     }
 

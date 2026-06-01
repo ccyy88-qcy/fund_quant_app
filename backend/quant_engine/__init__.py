@@ -51,3 +51,6 @@ from .market_sentiment import (
     calc_advance_decline, calc_volume_analysis, calc_market_sentiment,
     calc_build_signal, score_funds,
 )
+from .holding_analysis import (
+    calc_holding_period_analysis, compare_holding_strategies,
+)

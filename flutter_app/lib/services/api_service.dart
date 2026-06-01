@@ -334,4 +334,22 @@ class ApiService {
     final res = await _dio.post('/api/system/restart');
     return res.data['data'] ?? {};
   }
+
+  // ═══════════════════════════════════════
+  // 持有期分析
+  // ═══════════════════════════════════════
+
+  /// 持有期收益分析
+  Future<Map<String, dynamic>> getHoldingAnalysis(String code) async {
+    final res = await _dio.get('/api/holding/analysis',
+        queryParameters: {'code': code});
+    return res.data['data'] ?? {};
+  }
+
+  /// 持有策略对比
+  Future<Map<String, dynamic>> compareHoldingStrategies(String code) async {
+    final res = await _dio.get('/api/holding/compare',
+        queryParameters: {'code': code});
+    return res.data['data'] ?? {};
+  }
 }

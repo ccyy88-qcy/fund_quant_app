@@ -449,7 +449,7 @@ def scan_golden_cross_candidates(top_n: int = 10) -> list:
     spot_df = spot_df[spot_df['成交额'].fillna(0) > 5e7].copy()  # 成交额>5000万
     top_etfs = spot_df.sort_values('成交额', ascending=False).head(top_n * 10)
 
-    max_analyze = min(len(top_etfs), 15)  # 最多分析15只
+    max_analyze = min(len(top_etfs), 50)  # 最多分析50只
 
     for idx, (_, row) in enumerate(top_etfs.iterrows()):
         if idx >= max_analyze:
@@ -493,14 +493,12 @@ def scan_golden_cross_candidates(top_n: int = 10) -> list:
 
             # 条件判定
             cond1 = dif_v < 0 and dea_v < 0          # MACD零轴下方
-            cond2 = bar_v > bar_prev and bar_v < 0   # 绿柱从放大→缩小
+            # 绿柱收缩: 当前柱 > 前一根 或 差距缩小超过10%
+            cond2 = (bar_v > bar_prev and bar_v < 0) or (bar_v < 0 and abs(bar_v) < abs(bar_prev) * 0.85)
             cond3 = (ma5 > ma10 and ma5_prev <= ma10_prev) or \
-                    (abs(ma5 - ma10) / ma10 < 0.025 and ma5 > ma5_prev)  # 金叉或即将金叉
-            cond4 = drawdown_pct > 10                 # 回撤>10%
+                    (abs(ma5 - ma10) / ma10 < 0.03 and ma5 > ma5_prev)  # 金叉或即将金叉
+            cond4 = drawdown_pct > 8                  # 回撤>8%（放宽）
             cond5 = cap_flow > 0  # 资金净流入
-
-            if not (cond1 and cond2):
-                continue
 
             # 评分：每个条件20分 + 加分项
             score = 0
@@ -522,6 +520,10 @@ def scan_golden_cross_candidates(top_n: int = 10) -> list:
                 score += 5
 
             score = min(100, int(score))
+
+            # 至少满足2个条件（40分）才显示
+            if score < 40:
+                continue
 
             # 估值评级
             if hist_pct < 20:

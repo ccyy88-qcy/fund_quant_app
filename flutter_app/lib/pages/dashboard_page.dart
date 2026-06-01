@@ -341,7 +341,6 @@ class _DashboardPageState extends State<DashboardPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 第一行：名称 + 分数 + 信号
               Row(
                 children: [
                   Expanded(
@@ -361,7 +360,6 @@ class _DashboardPageState extends State<DashboardPage> {
                 ],
               ),
               const SizedBox(height: 4),
-              // 第二行：技术指标
               Row(
                 children: [
                   _miniChip('回撤', '${dd.toStringAsFixed(1)}%', dd >= 10 ? AppTheme.red : AppTheme.yellow),
@@ -374,7 +372,6 @@ class _DashboardPageState extends State<DashboardPage> {
                 ],
               ),
               const SizedBox(height: 4),
-              // 第三行：条件达成 + MACD柱
               Row(
                 children: [
                   _condIcon(cond['macd_below_zero'] == true, '零轴下'),
@@ -391,9 +388,15 @@ class _DashboardPageState extends State<DashboardPage> {
                       style: const TextStyle(color: AppTheme.textSecondary, fontSize: 9)),
                 ],
               ),
-              if (advice.isNotEmpty) ...[const SizedBox(height: 2), Text(advice, style: TextStyle(color: sc.withOpacity(0.8), fontSize: 10))],
+              if (advice.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(advice, style: TextStyle(color: sc.withOpacity(0.8), fontSize: 10)),
+                ),
             ],
-          ));
+          ),
+          ),
+        );
         }
       }).toList(),
     );

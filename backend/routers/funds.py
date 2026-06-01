@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 import sys, os
+import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from quant_engine import data_fetcher as df
 from quant_engine import indicators as ind

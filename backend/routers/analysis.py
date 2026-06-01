@@ -54,10 +54,12 @@ async def full_report(code: str = Query('562360', description='基金/ETF代码'
 @router.get('/technical')
 async def technical_analysis(code: str = Query('562360')):
     """技术面评分"""
-    kline = df.get_kline(code, 500)
-    if not kline:
+    raw_kline = df.get_kline(code, 500)
+    if not raw_kline:
         return {'error': '数据获取失败'}
-    score = sa.calc_technical_score(kline)
+    import pandas as pd
+    kdf = pd.DataFrame(raw_kline)
+    score = sa.calc_technical_score(kdf)
     return {'data': {'code': code, **score}}
 
 
@@ -77,10 +79,12 @@ async def comprehensive_rating(code: str = Query('562360'),
                                 pe_pct: Optional[float] = None,
                                 pb_pct: Optional[float] = None):
     """综合评级"""
-    kline = df.get_kline(code, 500)
-    if not kline:
+    raw_kline = df.get_kline(code, 500)
+    if not raw_kline:
         return {'error': '数据获取失败'}
-    rating = sa.calc_comprehensive_rating(kline, pe_pct, pb_pct)
+    import pandas as pd
+    kdf = pd.DataFrame(raw_kline)
+    rating = sa.calc_comprehensive_rating(kdf, pe_pct, pb_pct)
     return {'data': {'code': code, **rating}}
 
 
@@ -89,9 +93,11 @@ async def investment_advice(code: str = Query('562360'),
                              pe_pct: Optional[float] = None,
                              pb_pct: Optional[float] = None):
     """投资建议"""
-    kline = df.get_kline(code, 500)
-    if not kline:
+    raw_kline = df.get_kline(code, 500)
+    if not raw_kline:
         return {'error': '数据获取失败'}
-    rating = sa.calc_comprehensive_rating(kline, pe_pct, pb_pct)
+    import pandas as pd
+    kdf = pd.DataFrame(raw_kline)
+    rating = sa.calc_comprehensive_rating(kdf, pe_pct, pb_pct)
     advice = sa.calc_investment_advice(rating)
     return {'data': {'code': code, **advice}}

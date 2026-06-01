@@ -5,8 +5,8 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
-  // 默认地址，用户可在设置中修改
-  String baseUrl = 'http://10.24.108.16:8000';
+  // 默认地址（127.0.0.1=同机Termux，用户可在设置中修改）
+  String baseUrl = 'http://127.0.0.1:8000';
   late Dio _dio;
 
   void init() {

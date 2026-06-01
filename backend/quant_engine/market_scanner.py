@@ -129,48 +129,11 @@ def scan_etf_market(top_n: int = 20, min_volume_ratio: float = 0.5) -> list:
 
 def _get_kline_real(code: str, days: int = 200) -> list:
     """使用真实数据源获取K线"""
-    import httpx
-    import json
-
-    # 优先新浪财经ETF K线
-    try:
-        prefix = "sh" if code.startswith("51") or code.startswith("56") else "sz"
-        url = f'https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol={prefix}{code}&scale=240&datalen={days}'
-        resp = httpx.get(url, timeout=10)
-        data = json.loads(resp.text)
-        if data and len(data) > 5:
-            kline = []
-            for d in data:
-                kline.append({
-                    'day': str(d['day'])[:10],
-                    'open': float(d['open']),
-                    'high': float(d['high']),
-                    'low': float(d['low']),
-                    'close': float(d['close']),
-                    'volume': float(d.get('volume', 0)),
-                })
-            return kline
-    except:
-        pass
-
-    # 备选：东方财富
-    try:
-        df = ak.fund_etf_hist_em(symbol=code, period="daily", start_date="20250101", adjust="qfq")
-        if df is not None and len(df) > 10:
-            kline = []
-            for _, r in df.iterrows():
-                kline.append({
-                    'day': str(r['日期'])[:10],
-                    'open': float(r['开盘']),
-                    'high': float(r['最高']),
-                    'low': float(r['最低']),
-                    'close': float(r['收盘']),
-                    'volume': float(r.get('成交量', 0)),
-                })
-            return kline[-days:]
-    except:
-        pass
-
+    # 使用 data_fetcher.get_kline (有3层备选策略)
+    from . import data_fetcher as df
+    kline = df.get_kline(code, days)
+    if kline and len(kline) >= 5:
+        return kline
     return []
 
 

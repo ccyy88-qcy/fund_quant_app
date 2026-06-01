@@ -147,22 +147,33 @@ def get_kline(code: str, days: int = 500) -> list:
         except:
             pass
 
-    # 策略3: 场外基金净值（天天基金）
+    # 策略3: 场外基金净值（天天基金JSON API）
     if not kline:
         try:
-            url = f'https://fund.eastmoney.com/f10/F10DataApi.aspx?type=lsjz&code={code}&page=1&per={min(days, 260)}'
-            resp = httpx.get(url, timeout=15)
-            rows = re.findall(
-                r'<td>(\d{4}-\d{2}-\d{2})</td><td[^>]*>([\d\.]+)</td><td[^>]*>([\d\.]+)</td>',
-                resp.text
-            )
-            for day, nav, acc_nav in rows[-days:]:
-                nav_f = float(nav)
-                kline.append({
-                    'day': day, 'open': nav_f, 'high': nav_f, 'low': nav_f, 'close': nav_f,
-                    'volume': 0, 'acc_nav': float(acc_nav),
-                })
-        except:
+            headers = {'Referer': 'https://fund.eastmoney.com/', 'User-Agent': 'Mozilla/5.0'}
+            max_pages = max(1, (days + 19) // 20)
+            for page in range(1, max_pages + 1):
+                url = f'https://api.fund.eastmoney.com/f10/lsjz?callback=jQuery&fundCode={code}&pageIndex={page}&pageSize=20'
+                resp = httpx.get(url, headers=headers, timeout=15)
+                text = resp.text.strip()
+                if text.startswith('jQuery('):
+                    text = text[7:-1]
+                data = json.loads(text)
+                items = data.get('Data', {}).get('LSJZList', [])
+                if not items:
+                    break
+                for item in items:
+                    nav = item.get('DWJZ', '')
+                    acc_nav = item.get('LJJZ', '')
+                    if nav and acc_nav:
+                        nav_f = float(nav)
+                        kline.append({
+                            'day': item['FSRQ'], 'open': nav_f, 'high': nav_f,
+                            'low': nav_f, 'close': nav_f,
+                            'volume': 0, 'acc_nav': float(acc_nav),
+                        })
+            kline.reverse()  # API返回倒序
+        except Exception:
             pass
 
     _cache_set(cache_key, kline)

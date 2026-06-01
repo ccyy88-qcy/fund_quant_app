@@ -279,7 +279,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 TextField(
                   controller: _hostController,
                   decoration: const InputDecoration(
-                    hintText: 'http://10.24.108.16:8000',
+                    hintText: 'http://127.0.0.1:8000',
                     prefixIcon:
                         Icon(Icons.link, color: AppTheme.accent, size: 20),
                   ),

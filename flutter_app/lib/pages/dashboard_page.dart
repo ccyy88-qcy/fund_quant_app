@@ -4,6 +4,10 @@ import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../main.dart';
 import 'kline_page.dart';
+import 'quant_home_page.dart';
+import 'strategy_home_page.dart';
+import 'risk_analysis_page.dart';
+import 'analysis_report_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -423,10 +427,68 @@ class _DashboardPageState extends State<DashboardPage> {
     final code = f['code'] ?? '';
     final name = f['name'] ?? code;
     if (code.isEmpty) return;
-    // 跳转到K线分析Tab，传入基金代码
-    Navigator.push(context, MaterialPageRoute(
-      builder: (_) => KlinePage(initialCode: code),
-    ));
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.bgDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 拖拽条
+              Container(width: 40, height: 4,
+                decoration: BoxDecoration(color: AppTheme.textSecondary.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 12),
+              Text(name, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(code, style: const TextStyle(color: AppTheme.accent, fontSize: 13)),
+              const SizedBox(height: 16),
+              _menuBtn(Icons.show_chart, 'K线分析', () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => KlinePage(initialCode: code))); }),
+              _menuBtn(Icons.analytics, '量化分析 · 回测/信号', () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => QuantHomePage())); }),
+              _menuBtn(Icons.auto_graph, '策略中心 · 组合/配置', () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => StrategyHomePage())); }),
+              _menuBtn(Icons.shield, '风险分析 · VaR/压力测试', () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const RiskAnalysisPage())); }),
+              _menuBtn(Icons.assessment, '综合报告 · 一键分析', () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const AnalysisReportPage())); }),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _menuBtn(IconData icon, String label, VoidCallback onTap) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.bgCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0x338B5CF6), width: 0.5),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Icon(icon, color: AppTheme.accent, size: 20),
+                const SizedBox(width: 12),
+                Text(label, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14)),
+                const Spacer(),
+                const Icon(Icons.chevron_right, color: AppTheme.textSecondary, size: 18),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _miniChip(String label, String value, Color color) {

@@ -12,7 +12,8 @@ router = APIRouter(prefix='/api/sentiment', tags=['sentiment'])
 @router.get('/')
 async def market_sentiment():
     """市场情绪综合指数"""
-    result = ms.calc_market_sentiment()
+    import asyncio
+    result = await asyncio.to_thread(ms.calc_market_sentiment)
     return {'data': result}
 
 
@@ -38,7 +39,8 @@ async def build_signal(
 ):
     """建仓提醒信号"""
     kline = df.get_kline(code, 500) if code else None
-    sentiment = ms.calc_market_sentiment()
+    import asyncio
+    sentiment = await asyncio.to_thread(ms.calc_market_sentiment)
     result = ms.calc_build_signal(kline, pe_pct, pb_pct, sentiment)
     info = df.get_fund_info(code) if code else {}
     result['code'] = code

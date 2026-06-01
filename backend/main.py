@@ -4,12 +4,29 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os, sys
 
+# numpy序列化支持
+import numpy as np
+import json
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, (np.integer,)): return int(obj)
+        if isinstance(obj, (np.floating,)): return float(obj)
+        if isinstance(obj, (np.ndarray,)): return obj.tolist()
+        if isinstance(obj, (np.bool_,)): return bool(obj)
+        return super().default(obj)
+
+from fastapi.responses import JSONResponse as FastJSONResponse
+class NumpyJSONResponse(FastJSONResponse):
+    def render(self, content: dict) -> bytes:
+        return json.dumps(content, cls=NumpyEncoder, ensure_ascii=False).encode('utf-8')
+
 # 确保能找到quant_engine
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from routers import funds, market, factors, rotation, portfolio, strategy, risk, analysis, dca, sentiment, system, holding, scanner
 
-app = FastAPI(title='基金全量量化工具', version='1.0.0')
+app = FastAPI(title='基金全量量化工具', version='1.0.0', default_response_class=NumpyJSONResponse)
 
 # CORS — 允许Flutter App跨域
 app.add_middleware(

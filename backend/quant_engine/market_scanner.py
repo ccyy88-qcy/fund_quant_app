@@ -580,7 +580,44 @@ def scan_golden_cross_candidates(top_n: int = 10) -> list:
             continue
 
     results.sort(key=lambda x: x.get('total_score', 0), reverse=True)
-    return results[:top_n]
+
+    # 行业去重：同一板块只保留评分最高的
+    # 先提取行业关键词
+    _SECTOR_KEYWORDS = [
+        '恒生科技', '恒生互联网', '中概互联', '港股通', '恒生',
+        '半导体', '芯片', '通信', '5G', '软件', '数字经济', '电子',
+        '红利', '银行', '证券', '保险', '地产', '基建', '消费',
+        '新能源', '光伏', '军工', '医药', '医疗', '创新药',
+        '黄金', '商品',
+        '沪深300', '中证500', '中证1000', '上证50', '科创50', '科创100',
+        '创业板', '中证A500', '大盘', '成长', '价值',
+    ]
+    def _extract_sector(name: str) -> str:
+        for kw in _SECTOR_KEYWORDS:
+            if kw in name:
+                return kw
+        # 没匹配到关键词，取ETF前面的部分（不含管理公司名）
+        for suffix in ['ETF华夏', 'ETF易方达', 'ETF华泰柏瑞', 'ETF国泰', 'ETF招商',
+                       'ETF南方', 'ETF富国', 'ETF广发', 'ETF嘉实', 'ETF工银',
+                       'ETF博时', 'ETF平安', 'ETF银华', 'ETF华安', 'ETF浦银',
+                       'ETF天弘', 'ETF大成', 'ETF汇添富']:
+            if suffix in name:
+                return name.split(suffix)[0]
+        return name.split('ETF')[0].strip() if 'ETF' in name else name[:4]
+
+    seen_sectors = set()
+    deduped = []
+    for item in results:
+        sector = _extract_sector(item.get('name', ''))
+        if sector in seen_sectors:
+            continue
+        seen_sectors.add(sector)
+        item['sector'] = sector
+        deduped.append(item)
+        if len(deduped) >= top_n:
+            break
+
+    return deduped
 
 
 # ─── 指数PE/PB估值查询 ───

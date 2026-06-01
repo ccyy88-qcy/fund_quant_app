@@ -8,21 +8,23 @@ from typing import Optional
 # ─── 涨跌家数 ───
 
 def calc_advance_decline(stock_data: list = None) -> dict:
-    """涨跌家数统计
-
-    Args:
-        stock_data: [{name, change_pct}, ...] 个股涨跌幅列表
-
-    Returns:
-        涨跌统计+涨跌比+市场宽度
-    """
+    """涨跌家数统计 — 实时数据"""
     if not stock_data:
-        # 模拟数据
-        np.random.seed(42)
-        n = 2000
-        changes = np.random.normal(0.3, 2.5, n)
-        stock_data = [{'name': f'股票{i}', 'change_pct': round(float(c), 2)}
-                      for i, c in enumerate(changes)]
+        try:
+            import akshare as ak
+            from .data_fetcher import _suppress_output
+            with _suppress_output():
+                df = ak.stock_zh_a_spot_em()
+            if df is not None and len(df) > 0:
+                stock_data = [{'name': str(r['名称']), 'change_pct': float(r.get('涨跌幅', 0))}
+                             for _, r in df.iterrows()]
+        except Exception:
+            pass
+
+    if not stock_data:
+        return {'advances': 0, 'declines': 0, 'flats': 0, 'total': 0,
+                'advance_decline_ratio': 1.0, 'market_width': 0,
+                'strong_stocks': 0, 'weak_stocks': 0}
 
     changes = np.array([s.get('change_pct', 0) for s in stock_data])
     advances = int(np.sum(changes > 0))
@@ -136,24 +138,53 @@ def calc_market_sentiment(kline_data: list = None, stock_data: list = None,
     Returns:
         情绪指数0-100，含各分项得分和解读
     """
+    # 获取个股实时数据
+    if not stock_data:
+        try:
+            import akshare as ak
+            from .data_fetcher import _suppress_output
+            with _suppress_output():
+                df = ak.stock_zh_a_spot_em()
+            if df is not None and len(df) > 0:
+                stock_data = [{'name': str(r['名称']), 'change_pct': float(r.get('涨跌幅', 0))}
+                             for _, r in df.iterrows()]
+        except Exception:
+            pass
     # 涨跌情绪 (0-100)
     ad = calc_advance_decline(stock_data)
     ad_ratio = ad.get('advance_decline_ratio', 1.0)
-    ad_score = min(100, max(0, (ad_ratio - 0.5) / 3 * 100))
+    ad_score = min(100, max(0, 50 + (ad_ratio - 1.0) * 30))
 
     # 量能情绪 (0-100)
     vol = calc_volume_analysis(kline_data)
     vr = vol.get('vol_ratio_5d', 1.0)
     vol_score = min(100, max(0, (vr - 0.3) / 2 * 100))
 
-    # 北向资金情绪 (模拟)
-    np.random.seed(int(datetime.now().timestamp()) % 10000)
-    north_flow = round(np.random.normal(0, 50), 2)  # 亿
-    north_score = min(100, max(0, 50 + north_flow / 2))
+    # 北向资金情绪
+    north_score = 50
+    north_flow = 0
+    try:
+        import akshare as ak
+        from .data_fetcher import _suppress_output
+        with _suppress_output():
+            north_df = ak.stock_hsgt_fund_flow_summary_em()
+        if north_df is not None and len(north_df) > 0:
+            # 取沪股通+深股通（北向）合计
+            north_rows = north_df[north_df['资金方向'] == '北向']
+            if len(north_rows) > 0:
+                total_flow = north_rows['成交净买额'].sum()
+                north_flow = round(float(total_flow), 2)
+                north_score = min(100, max(0, 50 + north_flow / 2))
+    except Exception:
+        pass
 
-    # 涨跌停情绪 (模拟)
-    limit_up = int(np.random.poisson(40))
-    limit_down = int(np.random.poisson(15))
+    # 涨跌停情绪 — 从股票数据中统计真实数据
+    limit_up = 0
+    limit_down = 0
+    if stock_data:
+        changes_arr = np.array([s.get('change_pct', 0) for s in stock_data])
+        limit_up = int(np.sum(changes_arr >= 9.8))   # 涨停≈涨幅≥9.8%
+        limit_down = int(np.sum(changes_arr <= -9.8)) # 跌停≈跌幅≤-9.8%
     limit_ratio = limit_up / max(limit_down, 1)
     limit_score = min(100, max(0, (limit_ratio - 0.5) / 4 * 100))
 

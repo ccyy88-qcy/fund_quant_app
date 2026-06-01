@@ -481,6 +481,12 @@ def scan_golden_cross_candidates(top_n: int = 10) -> list:
             high_60d = float(closes[-60:].max())
             drawdown_pct = round((high_60d - current) / high_60d * 100, 2)
 
+            # 历史位置百分位（估值参考）
+            hist_high_all = float(closes.max())
+            hist_low_all = float(closes.min())
+            hist_range = hist_high_all - hist_low_all if hist_high_all > hist_low_all else 1
+            hist_pct = (current - hist_low_all) / hist_range * 100
+
             # 条件判定
             cond1 = dif_v < 0 and dea_v < 0          # MACD零轴下方
             cond2 = bar_v > bar_prev and bar_v < 0   # 绿柱从放大→缩小
@@ -513,6 +519,23 @@ def scan_golden_cross_candidates(top_n: int = 10) -> list:
 
             score = min(100, int(score))
 
+            # 估值评级
+            if hist_pct < 20:
+                val_rating = '📉 低估'
+                val_color = '#4CAF50'
+            elif hist_pct < 40:
+                val_rating = '📊 偏低'
+                val_color = '#66BB6A'
+            elif hist_pct < 60:
+                val_rating = '📊 合理'
+                val_color = '#FF9800'
+            elif hist_pct < 80:
+                val_rating = '📈 偏高'
+                val_color = '#FF7043'
+            else:
+                val_rating = '🚨 高估'
+                val_color = '#F44336'
+
             # 信号分级
             if score >= 75:
                 signal = '🔥 强烈信号'
@@ -540,6 +563,8 @@ def scan_golden_cross_candidates(top_n: int = 10) -> list:
                 'capital_flow_pct': cap_flow,
                 'volume_ratio': vol_ratio,
                 'drawdown_pct': drawdown_pct,
+                'hist_percentile': round(hist_pct, 1),
+                'valuation': val_rating,
                 'macd': {'dif': round(dif_v, 4), 'dea': round(dea_v, 4), 'bar': round(bar_v, 4)},
                 'ma': {'ma5': round(ma5, 4), 'ma10': round(ma10, 4)},
                 'conditions': {

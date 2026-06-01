@@ -374,6 +374,22 @@ class _DashboardPageState extends State<DashboardPage> {
               const SizedBox(height: 4),
               Row(
                 children: [
+                  Text('估值 ${f['valuation'] ?? 'N/A'}', style: TextStyle(
+                    color: f['valuation']?.toString().contains('低估') == true
+                        ? const Color(0xFF4CAF50)
+                        : f['valuation']?.toString().contains('高估') == true
+                            ? const Color(0xFFF44336)
+                            : AppTheme.textSecondary,
+                    fontSize: 10, fontWeight: FontWeight.w500,
+                  )),
+                  const SizedBox(width: 8),
+                  Text('历史分位 ${(f['hist_percentile'] as num?)?.toStringAsFixed(0) ?? '?'}%',
+                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 9)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
                   _condIcon(cond['macd_below_zero'] == true, '零轴下'),
                   const SizedBox(width: 4),
                   _condIcon(cond['green_bar_shrinking'] == true, '柱收缩'),

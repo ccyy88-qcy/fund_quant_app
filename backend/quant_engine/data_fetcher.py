@@ -208,7 +208,7 @@ def get_realtime_estimation(codes: list) -> list:
 # ─── 大盘指数行情 ───
 
 def get_market_index() -> list:
-    """获取主要指数行情（上证/沪深300/创业板/中证500/深证）— 新浪API（兼容Termux ARM64）"""
+    """获取主要指数实时行情（新浪实时API，含今日涨跌）"""
     indices = {
         'sh000001': '上证指数', 'sz399001': '深证成指', 'sz399006': '创业板指',
         'sh000300': '沪深300', 'sh000905': '中证500',
@@ -216,18 +216,22 @@ def get_market_index() -> list:
     results = []
     for sym, name in indices.items():
         try:
-            url = f'https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol={sym}&scale=240&datalen=3'
-            resp = httpx.get(url, timeout=10)
-            data = resp.json()
-            if data and len(data) >= 2:
-                last, prev = data[-1], data[-2]
-                close = float(last['close'])
-                prev_close = float(prev['close'])
-                change = round((close - prev_close) / prev_close * 100, 2) if prev_close > 0 else 0
-                results.append({
-                    'name': name, 'code': sym.replace('sh', '').replace('sz', ''),
-                    'price': round(close, 2), 'change': change,
-                })
+            url = f'https://hq.sinajs.cn/list={sym}'
+            resp = httpx.get(url, headers={'Referer': 'https://finance.sina.com.cn'}, timeout=10)
+            text = resp.text.strip()
+            # 格式: var hq_str_sh000001="名称,昨收,今开,当前,最高,最低,...";
+            if '="' not in text:
+                continue
+            parts = text.split('="')[1].split('","')[0].split(',')
+            if len(parts) < 4:
+                continue
+            yesterday_close = float(parts[1])  # 昨收
+            current_price = float(parts[3])   # 当前价
+            change = round((current_price - yesterday_close) / yesterday_close * 100, 2) if yesterday_close > 0 else 0
+            results.append({
+                'name': name, 'code': sym.replace('sh', '').replace('sz', ''),
+                'price': round(current_price, 2), 'change': change,
+            })
         except Exception:
             pass
     return results

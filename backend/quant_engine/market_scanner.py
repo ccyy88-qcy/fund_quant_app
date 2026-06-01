@@ -9,6 +9,10 @@ import akshare as ak
 from datetime import datetime
 from typing import Optional
 
+# 内存缓存：避免重复扫描全市场1500只ETF（卡事件循环）
+_scan_cache = {}
+_CACHE_TTL = 300  # 5分钟
+
 from .indicators import calc_ma, calc_rsi, calc_macd, calc_bollinger
 from .risk_metrics import max_drawdown
 
@@ -43,6 +47,12 @@ def scan_etf_market(top_n: int = 20, min_volume_ratio: float = 0.5) -> list:
     Returns:
         评分排序后的ETF列表（真实数据）
     """
+    # 内存缓存：避免重复扫描卡事件循环
+    cache_key = f'scan_etf_market:{top_n}:{min_volume_ratio}'
+    cached = _scan_cache.get(cache_key)
+    if cached and time.time() - cached['time'] < _CACHE_TTL:
+        return cached['data']
+
     # 1. 拉实时ETF行情（抑制tqdm进度条，避免uvicorn Broken pipe）
     try:
         with _suppress_output():
@@ -120,10 +130,13 @@ def scan_etf_market(top_n: int = 20, min_volume_ratio: float = 0.5) -> list:
 
     # 5. 综合排序
     if not results:
+        _scan_cache[cache_key] = {'data': [], 'time': time.time()}
         return [{'error': '无法获取足够K线数据'}]
 
     results.sort(key=lambda x: x.get('total_score', 0), reverse=True)
 
+    # 缓存结果（5分钟有效）
+    _scan_cache[cache_key] = {'data': results[:top_n], 'time': time.time()}
     return results[:top_n]
 
 

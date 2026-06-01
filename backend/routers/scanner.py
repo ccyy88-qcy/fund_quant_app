@@ -11,8 +11,9 @@ router = APIRouter(prefix='/api/scanner', tags=['scanner'])
 @router.get('/build-candidates')
 async def build_candidates(top_n: int = Query(10, description='返回数量')):
     """全市场扫描：找出最适合建仓的ETF（真实数据）"""
+    import asyncio
     try:
-        results = ms.scan_build_candidates(top_n=top_n)
+        results = await asyncio.to_thread(ms.scan_build_candidates, top_n=top_n)
         return {'data': results, 'source': 'real_market', 'count': len(results)}
     except Exception as e:
         return {'data': [], 'source': 'error', 'error': str(e)}
@@ -21,8 +22,9 @@ async def build_candidates(top_n: int = Query(10, description='返回数量')):
 @router.get('/hot-etfs')
 async def hot_etfs(top_n: int = Query(20)):
     """热门ETF排行（按活跃度：成交额+量比+振幅）"""
+    import asyncio
     try:
-        results = ms.scan_etf_market(top_n=top_n)
+        results = await asyncio.to_thread(ms.scan_etf_market, top_n=top_n)
         return {'data': results, 'source': 'real_market', 'count': len(results)}
     except Exception as e:
         return {'data': [], 'source': 'error', 'error': str(e)}

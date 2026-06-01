@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
@@ -43,7 +44,7 @@ class _StrategyPageState extends State<StrategyPage> {
     Map<String, dynamic> params;
     try {
       params = Map<String, dynamic>.from(
-          const JsonDecoder().convert(_paramsController.text.trim()));
+          jsonDecode(_paramsController.text.trim()));
     } catch (_) {
       _showError('参数格式错误，请使用JSON格式');
       return;
@@ -98,8 +99,7 @@ class _StrategyPageState extends State<StrategyPage> {
   }
 
   void _applyDefaultParams() {
-    _paramsController.text = const JsonEncoder.withIndent('  ')
-        .convert(_defaultParams());
+    _paramsController.text = jsonEncode(_defaultParams());
   }
 
   @override

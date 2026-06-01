@@ -279,7 +279,7 @@ class _VolatilityPageState extends State<VolatilityPage>
                               ),
                               child: Text(
                                 (e.value is num)
-                                    ? '${(e.value as num * 100).toStringAsFixed(0)}%'
+                                    ? '${((e.value as num) * 100).toStringAsFixed(0)}%'
                                     : '${e.value}',
                                 style: TextStyle(
                                   color: (e.value is num && e.value > 0.8)

@@ -396,7 +396,7 @@ class _FactorPageState extends State<FactorPage>
                   items: _factorOptions.map((f) => DropdownMenuItem(
                         value: f,
                         child: Text(f, style: const TextStyle(color: AppTheme.textPrimary)),
-                      )),
+                      )).toList(),
                   onChanged: (v) {
                     if (v != null) setState(() => _selectedFactor = v);
                   },

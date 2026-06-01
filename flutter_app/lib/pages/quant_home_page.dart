@@ -5,6 +5,8 @@ import 'factor_page.dart';
 import 'rotation_page.dart';
 import 'volatility_page.dart';
 import 'risk_analysis_page.dart';
+import 'build_signal_page.dart';
+import 'analysis_report_page.dart';
 
 class QuantHomePage extends StatefulWidget {
   const QuantHomePage({super.key});
@@ -20,7 +22,7 @@ class _QuantHomePageState extends State<QuantHomePage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 7, vsync: this);
   }
 
   @override
@@ -41,6 +43,8 @@ class _QuantHomePageState extends State<QuantHomePage>
           labelColor: AppTheme.accent,
           unselectedLabelColor: AppTheme.textSecondary,
           tabs: const [
+            Tab(text: '🔥建仓提醒'),
+            Tab(text: '🤖智能分析'),
             Tab(text: '回测信号'),
             Tab(text: '多因子'),
             Tab(text: '行业轮动'),
@@ -52,6 +56,8 @@ class _QuantHomePageState extends State<QuantHomePage>
       body: TabBarView(
         controller: _tabController,
         children: const [
+          BuildSignalPage(),
+          AnalysisReportPage(),
           QuantPage(),
           FactorPage(),
           RotationPage(),

@@ -234,4 +234,88 @@ class ApiService {
         queryParameters: {'code': code});
     return res.data['data'] ?? {};
   }
+
+  // ═══════════════════════════════════════
+  // AI智能分析
+  // ═══════════════════════════════════════
+
+  /// 一键分析报告
+  Future<Map<String, dynamic>> getAnalysisReport(String code,
+      {double? pePct, double? pbPct}) async {
+    final params = <String, dynamic>{'code': code};
+    if (pePct != null) params['pe_pct'] = pePct;
+    if (pbPct != null) params['pb_pct'] = pbPct;
+    final res = await _dio.get('/api/analysis/report',
+        queryParameters: params);
+    return res.data['data'] ?? {};
+  }
+
+  /// 投资建议
+  Future<Map<String, dynamic>> getInvestmentAdvice(String code,
+      {double? pePct, double? pbPct}) async {
+    final params = <String, dynamic>{'code': code};
+    if (pePct != null) params['pe_pct'] = pePct;
+    if (pbPct != null) params['pb_pct'] = pbPct;
+    final res = await _dio.get('/api/analysis/advice',
+        queryParameters: params);
+    return res.data['data'] ?? {};
+  }
+
+  // ═══════════════════════════════════════
+  // 智能定投
+  // ═══════════════════════════════════════
+
+  /// 定投回测
+  Future<Map<String, dynamic>> dcaBacktest(
+      String code, String strategy, double amount, int frequency,
+      {int years = 3}) async {
+    final res = await _dio.get('/api/dca/backtest', queryParameters: {
+      'code': code,
+      'strategy': strategy,
+      'amount': amount,
+      'frequency': frequency,
+      'years': years,
+    });
+    return res.data['data'] ?? {};
+  }
+
+  /// 定投策略对比
+  Future<Map<String, dynamic>> compareDcaStrategies(
+      String code, double amount, int frequency,
+      {int years = 3}) async {
+    final res = await _dio.get('/api/dca/compare', queryParameters: {
+      'code': code,
+      'amount': amount,
+      'frequency': frequency,
+      'years': years,
+    });
+    return res.data['data'] ?? {};
+  }
+
+  // ═══════════════════════════════════════
+  // 市场情绪 & 建仓提醒
+  // ═══════════════════════════════════════
+
+  /// 市场情绪
+  Future<Map<String, dynamic>> getMarketSentiment() async {
+    final res = await _dio.get('/api/sentiment/');
+    return res.data['data'] ?? {};
+  }
+
+  /// 建仓信号
+  Future<Map<String, dynamic>> getBuildSignal(String code,
+      {double? pePct, double? pbPct}) async {
+    final params = <String, dynamic>{'code': code};
+    if (pePct != null) params['pe_pct'] = pePct;
+    if (pbPct != null) params['pb_pct'] = pbPct;
+    final res = await _dio.get('/api/sentiment/build-signal',
+        queryParameters: params);
+    return res.data['data'] ?? {};
+  }
+
+  /// 基金排名
+  Future<List<dynamic>> getFundRanks() async {
+    final res = await _dio.get('/api/sentiment/fund-ranks');
+    return res.data['data'] ?? [];
+  }
 }

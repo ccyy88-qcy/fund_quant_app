@@ -86,10 +86,10 @@ class AppTheme {
     );
   }
 
-  // 涨跌颜色
+  // 涨跌颜色（A股：红涨绿跌）
   static Color changeColor(double change) {
-    if (change > 0) return green;
-    if (change < 0) return red;
+    if (change > 0) return red;
+    if (change < 0) return green;
     return textSecondary;
   }
 

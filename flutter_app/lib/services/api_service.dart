@@ -318,4 +318,20 @@ class ApiService {
     final res = await _dio.get('/api/sentiment/fund-ranks');
     return res.data['data'] ?? [];
   }
+
+  // ═══════════════════════════════════════
+  // 系统管理
+  // ═══════════════════════════════════════
+
+  /// 系统状态
+  Future<Map<String, dynamic>> getSystemStatus() async {
+    final res = await _dio.get('/api/system/status');
+    return res.data['data'] ?? {};
+  }
+
+  /// 重启后端
+  Future<Map<String, dynamic>> restartBackend() async {
+    final res = await _dio.post('/api/system/restart');
+    return res.data['data'] ?? {};
+  }
 }

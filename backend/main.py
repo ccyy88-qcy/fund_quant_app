@@ -7,7 +7,7 @@ import os, sys
 # 确保能找到quant_engine
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from routers import funds, market, factors, rotation, portfolio, strategy, risk, analysis, dca, sentiment
+from routers import funds, market, factors, rotation, portfolio, strategy, risk, analysis, dca, sentiment, system
 
 app = FastAPI(title='基金全量量化工具', version='1.0.0')
 
@@ -30,6 +30,7 @@ app.include_router(risk.router)
 app.include_router(analysis.router)
 app.include_router(dca.router)
 app.include_router(sentiment.router)
+app.include_router(system.router)
 
 
 @app.get('/api/health')

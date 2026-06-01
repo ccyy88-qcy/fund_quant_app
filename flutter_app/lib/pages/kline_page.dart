@@ -182,14 +182,32 @@ class _KlinePageState extends State<KlinePage> {
     if (kline.isEmpty) return const SizedBox();
 
     final closes = kline.map((k) => (k['close'] as num).toDouble()).toList();
-    final minPrice = closes.reduce((a, b) => a < b ? a : b) * 0.995;
-    final maxPrice = closes.reduce((a, b) => a > b ? a : b) * 1.005;
-
+    final ma5 = _getIndicator('ma5');
     final ma10 = _getIndicator('ma10');
-    final ma60 = _getIndicator('ma60');
+    final ma20 = _getIndicator('ma20');
+
+    // 价格范围
+    double minP = double.infinity, maxP = double.negativeInfinity;
+    for (final k in kline) {
+      final h = (k['high'] as num).toDouble();
+      final l = (k['low'] as num).toDouble();
+      if (h > maxP) maxP = h;
+      if (l < minP) minP = l;
+    }
+    for (final list in [ma5, ma10, ma20]) {
+      if (list == null) continue;
+      for (final v in list) {
+        if (v > maxP) maxP = v;
+        if (v < minP) minP = v;
+      }
+    }
+    final pad = (maxP - minP) * 0.08;
+    minP -= pad;
+    maxP += pad;
+    if (minP >= maxP) { minP = minP * 0.95; maxP = maxP * 1.05; }
 
     return Container(
-      height: 340,
+      height: 360,
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.fromLTRB(8, 20, 16, 20),
       decoration: BoxDecoration(
@@ -198,71 +216,30 @@ class _KlinePageState extends State<KlinePage> {
         border: Border.all(color: const Color(0x338B5CF6), width: 0.5),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               const SizedBox(width: 8),
               _buildLegend('K线', AppTheme.textPrimary),
+              if (ma5 != null) ...[const SizedBox(width: 12), _buildLegend('MA5', const Color(0xFFFFD740))],
               if (ma10 != null) ...[const SizedBox(width: 12), _buildLegend('MA10', AppTheme.accent)],
-              if (ma60 != null) ...[const SizedBox(width: 12), _buildLegend('MA60', AppTheme.yellow)],
+              if (ma20 != null) ...[const SizedBox(width: 12), _buildLegend('MA20', const Color(0xFFFF7043))],
             ],
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: (maxPrice - minPrice) / 4,
-                  getDrawingHorizontalLine: (v) => FlLine(
-                    color: Colors.white.withOpacity(0.05),
-                    strokeWidth: 0.5,
-                  ),
+            child: LayoutBuilder(
+              builder: (_, constraints) => CustomPaint(
+                size: Size(constraints.maxWidth, constraints.maxHeight),
+                painter: _CandlestickPainter(
+                  kline: kline,
+                  ma5: ma5,
+                  ma10: ma10,
+                  ma20: ma20,
+                  minPrice: minP,
+                  maxPrice: maxP,
                 ),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 56,
-                      getTitlesWidget: (v, _) => Text(
-                        v.toStringAsFixed(2),
-                        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 9),
-                      ),
-                    ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 28,
-                      interval: (kline.length / 5).ceilToDouble(),
-                      getTitlesWidget: (v, _) {
-                        final idx = v.toInt();
-                        if (idx < 0 || idx >= kline.length) return const SizedBox();
-                        final day = kline[idx]['day'] ?? '';
-                        return Text(
-                          day.toString().substring(5),
-                          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 9),
-                        );
-                      },
-                    ),
-                  ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                ),
-                borderData: FlBorderData(show: false),
-                minY: minPrice,
-                maxY: maxPrice,
-                lineBarsData: [
-                  if (ma10 != null)
-                    _buildLine(ma10, AppTheme.accent),
-                  if (ma60 != null)
-                    _buildLine(ma60, AppTheme.yellow),
-                ],
-                lineTouchData: const LineTouchData(enabled: false),
               ),
-              duration: const Duration(milliseconds: 300),
             ),
           ),
         ],
@@ -386,4 +363,139 @@ class _KlinePageState extends State<KlinePage> {
       ),
     );
   }
+}
+
+/// 蜡烛图绘制器
+class _CandlestickPainter extends CustomPainter {
+  final List<dynamic> kline;
+  final List<double>? ma5;
+  final List<double>? ma10;
+  final List<double>? ma20;
+  final double minPrice;
+  final double maxPrice;
+
+  _CandlestickPainter({
+    required this.kline,
+    this.ma5,
+    this.ma10,
+    this.ma20,
+    required this.minPrice,
+    required this.maxPrice,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final chartW = size.width - 50;
+    final chartH = size.height - 30;
+    final n = kline.length;
+    if (n == 0) return;
+    final candleW = chartW / n;
+    final gap = candleW * 0.25;
+    final bodyW = candleW - gap * 2;
+    if (bodyW < 1) return;
+
+    final range = maxPrice - minPrice;
+
+    double yPos(double v) => chartH - (v - minPrice) / range * chartH;
+
+    // ── 网格线 ──
+    final gridPaint = Paint()
+      ..color = Colors.white.withOpacity(0.05)
+      ..strokeWidth = 0.5;
+    for (int i = 0; i <= 4; i++) {
+      final y = chartH / 4 * i;
+      canvas.drawLine(Offset(50, y), Offset(size.width, y), gridPaint);
+    }
+
+    // ── Y轴价格 ──
+    final labelStyle = TextStyle(color: const Color(0xFF9898B0), fontSize: 9);
+    for (int i = 0; i <= 4; i++) {
+      final price = minPrice + range * (1 - i / 4);
+      final tp = TextPainter(
+        text: TextSpan(text: price.toStringAsFixed(2), style: labelStyle),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(50 - tp.width - 4, chartH / 4 * i - tp.height / 2));
+    }
+
+    // ── X轴日期 ──
+    final dateInterval = (n / 5).ceil();
+    final dateStyle = TextStyle(color: const Color(0xFF9898B0), fontSize: 8);
+    for (int i = 0; i < n; i += dateInterval) {
+      final day = kline[i]['day']?.toString() ?? '';
+      if (day.length >= 10) {
+        final tp = TextPainter(
+          text: TextSpan(text: day.substring(5), style: dateStyle),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        tp.paint(canvas, Offset(50 + i * candleW + (candleW - tp.width) / 2, chartH + 8));
+      }
+    }
+
+    // ── 蜡烛线 ──
+    for (int i = 0; i < n; i++) {
+      final k = kline[i];
+      final open = (k['open'] as num).toDouble();
+      final close = (k['close'] as num).toDouble();
+      final high = (k['high'] as num).toDouble();
+      final low = (k['low'] as num).toDouble();
+      final x = 50 + i * candleW + gap;
+      final isUp = close >= open;
+
+      final bodyColor = isUp ? const Color(0xFFF44336) : const Color(0xFF4CAF50);
+      final bodyTop = yPos(isUp ? close : open);
+      final bodyBottom = yPos(isUp ? open : close);
+      final bodyH = bodyBottom - bodyTop;
+
+      // 影线
+      final wickPaint = Paint()
+        ..color = bodyColor
+        ..strokeWidth = 1;
+      canvas.drawLine(Offset(x + bodyW / 2, yPos(high)), Offset(x + bodyW / 2, yPos(low)), wickPaint);
+
+      // 实体
+      if (bodyH < 1) {
+        canvas.drawLine(Offset(x, bodyTop), Offset(x + bodyW, bodyTop), wickPaint);
+      } else {
+        canvas.drawRect(
+          Rect.fromLTRB(x, bodyTop, x + bodyW, bodyBottom),
+          Paint()..color = bodyColor,
+        );
+      }
+    }
+
+    // ── MA线 ──
+    _drawMALine(canvas, chartW, chartH, candleW, ma5, const Color(0xFFFFD740));
+    _drawMALine(canvas, chartW, chartH, candleW, ma10, const Color(0xFF00D4FF));
+    _drawMALine(canvas, chartW, chartH, candleW, ma20, const Color(0xFFFF7043));
+  }
+
+  void _drawMALine(Canvas canvas, double chartW, double chartH, double candleW,
+                   List<double>? data, Color color) {
+    if (data == null || data.length < 2) return;
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+    final offset = kline.length - data.length;
+    final path = Path();
+    bool started = false;
+    for (int i = 0; i < data.length; i++) {
+      final v = data[i];
+      if (v.isNaN || v.isInfinite) continue;
+      final x = 50 + (offset + i) * candleW + candleW / 2;
+      final y = chartH - (v - minPrice) / (maxPrice - minPrice) * chartH;
+      if (!started) {
+        path.moveTo(x, y);
+        started = true;
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    if (started) canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CandlestickPainter old) =>
+      kline != old.kline || minPrice != old.minPrice || maxPrice != old.maxPrice;
 }

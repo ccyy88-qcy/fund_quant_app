@@ -74,6 +74,7 @@ def calc_all_indicators(df: pd.DataFrame) -> dict:
     """计算全部技术指标，返回dict"""
     close = df['close']
     return {
+        'ma5': calc_ma(close, 5).tolist(),
         'ma10': calc_ma(close, 10).tolist(),
         'ma20': calc_ma(close, 20).tolist(),
         'ma60': calc_ma(close, 60).tolist(),

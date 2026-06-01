@@ -352,4 +352,29 @@ class ApiService {
         queryParameters: {'code': code});
     return res.data['data'] ?? {};
   }
+
+  // ═══════════════════════════════════════
+  // 全市场扫描（真实数据）
+  // ═══════════════════════════════════════
+
+  /// 建仓候选ETF（真实市场数据）
+  Future<List<dynamic>> getBuildCandidates({int topN = 10}) async {
+    final res = await _dio.get('/api/scanner/build-candidates',
+        queryParameters: {'top_n': topN});
+    return res.data['data'] ?? [];
+  }
+
+  /// 热门ETF排行
+  Future<List<dynamic>> getHotEtfs({int topN = 20}) async {
+    final res = await _dio.get('/api/scanner/hot-etfs',
+        queryParameters: {'top_n': topN});
+    return res.data['data'] ?? [];
+  }
+
+  /// 单只ETF深度分析
+  Future<Map<String, dynamic>> analyzeEtf(String code) async {
+    final res = await _dio.get('/api/scanner/analyze',
+        queryParameters: {'code': code});
+    return res.data['data'] ?? {};
+  }
 }

@@ -33,11 +33,10 @@ class _DashboardPageState extends State<DashboardPage> {
       final results = await Future.wait([
         _api.getIndex().catchError((_) => <dynamic>[]),
         _api.getWatchlistRealtime().catchError((_) => <dynamic>[]),
-        _api.getFundRanks().catchError((_) => <dynamic>[]),
+        _api.getBuildCandidates(topN: 10).catchError((_) => <dynamic>[]),
         _api.getMarketSentiment().catchError((_) => <Map<String, dynamic>>{}),
         _api.getBuildSignal('562360').catchError((_) => <String, dynamic>{}),
       ]);
-
       if (!mounted) return;
       setState(() {
         _indices = results[0] as List<dynamic>;
@@ -80,8 +79,7 @@ class _DashboardPageState extends State<DashboardPage> {
         color: AppTheme.accent,
         onRefresh: _loadAllData,
         child: _loading
-            ? const Center(
-                child: CircularProgressIndicator(color: AppTheme.primary))
+            ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
             : _error != null
                 ? _buildErrorView()
                 : SingleChildScrollView(
@@ -90,37 +88,26 @@ class _DashboardPageState extends State<DashboardPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 顶部：建仓提醒横幅
                         _buildBuildSignalBanner(),
                         const SizedBox(height: 12),
-
-                        // 大盘指数
                         _buildSectionTitle('📊 大盘指数'),
                         const SizedBox(height: 8),
                         _buildIndexCards(),
                         const SizedBox(height: 16),
-
-                        // 市场情绪
                         _buildSectionTitle('📈 市场情绪'),
                         const SizedBox(height: 8),
                         _buildSentimentBar(),
                         const SizedBox(height: 16),
-
-                        // 热门基金排名
-                        _buildSectionTitle('🏆 热门基金评分排名'),
+                        _buildSectionTitle('🔥 实时建仓推荐（真实市场数据）'),
                         const SizedBox(height: 8),
                         _buildFundRankList(),
                         const SizedBox(height: 16),
-
-                        // 自选基金实时估值
                         _buildSectionTitle('💰 自选基金估值'),
                         const SizedBox(height: 8),
                         _watchlistData.isEmpty
                             ? _buildEmptyWidget('暂无自选基金', '在量化→回测信号中搜索添加')
                             : _buildWatchlistCards(),
                         const SizedBox(height: 16),
-
-                        // 市场雷达
                         _buildRadarSection(),
                         const SizedBox(height: 24),
                       ],
@@ -137,12 +124,9 @@ class _DashboardPageState extends State<DashboardPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off, size: 64,
-                color: AppTheme.textSecondary),
+            const Icon(Icons.cloud_off, size: 64, color: AppTheme.textSecondary),
             const SizedBox(height: 16),
-            Text(_error!,
-                style: const TextStyle(color: AppTheme.textSecondary),
-                textAlign: TextAlign.center),
+            Text(_error!, style: const TextStyle(color: AppTheme.textSecondary), textAlign: TextAlign.center),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _loadAllData,
@@ -150,8 +134,7 @@ class _DashboardPageState extends State<DashboardPage> {
               label: const Text('重试'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -160,38 +143,18 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // ── 建仓提醒横幅 ──
-
   Widget _buildBuildSignalBanner() {
-    if (_buildSignal == null || _buildSignal!.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    if (_buildSignal == null || _buildSignal!.isEmpty) return const SizedBox.shrink();
     final signal = _buildSignal!['build_signal'] ?? '';
     final score = (_buildSignal!['total_score'] as num?)?.toDouble() ?? 0;
     final position = _buildSignal!['suggested_position'] ?? '';
     final detail = _buildSignal!['action_detail'] ?? '';
-
-    Color color;
-    if (score >= 80) {
-      color = AppTheme.green;
-    } else if (score >= 65) {
-      color = const Color(0xFF66BB6A);
-    } else if (score >= 45) {
-      color = AppTheme.yellow;
-    } else if (score >= 30) {
-      color = AppTheme.red;
-    } else {
-      color = const Color(0xFFB71C1C);
-    }
+    final color = score >= 80 ? AppTheme.green : (score >= 65 ? const Color(0xFF66BB6A) : (score >= 45 ? AppTheme.yellow : (score >= 30 ? AppTheme.red : const Color(0xFFB71C1C))));
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [color.withOpacity(0.12), color.withOpacity(0.04)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: LinearGradient(colors: [color.withOpacity(0.12), color.withOpacity(0.04)], begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
@@ -199,56 +162,29 @@ class _DashboardPageState extends State<DashboardPage> {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              score >= 65
-                  ? Icons.trending_up
-                  : Icons.trending_flat,
-              color: color,
-              size: 28,
-            ),
+            decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+            child: Icon(score >= 65 ? Icons.trending_up : Icons.trending_flat, color: color, size: 28),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(signal,
-                    style: TextStyle(
-                        color: color,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold)),
+                Text(signal, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text('评分: ${score.toStringAsFixed(0)} | 建议仓位: $position',
-                    style: const TextStyle(
-                        color: AppTheme.textSecondary, fontSize: 12)),
+                Text('评分: ${score.toStringAsFixed(0)} | 建议仓位: $position', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
                 const SizedBox(height: 2),
-                Text(detail,
-                    style: const TextStyle(
-                        color: AppTheme.textSecondary, fontSize: 11)),
+                Text(detail, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
               ],
             ),
           ),
-          Container(
-            width: 40,
-            height: 40,
+          SizedBox(
+            width: 40, height: 40,
             child: Stack(
               alignment: Alignment.center,
               children: [
-                CircularProgressIndicator(
-                  value: score / 100,
-                  strokeWidth: 4,
-                  backgroundColor: color.withOpacity(0.15),
-                  valueColor: AlwaysStoppedAnimation<Color>(color),
-                ),
-                Text('${score.toStringAsFixed(0)}',
-                    style: TextStyle(
-                        color: color,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold)),
+                CircularProgressIndicator(value: score / 100, strokeWidth: 4, backgroundColor: color.withOpacity(0.15), valueColor: AlwaysStoppedAnimation<Color>(color)),
+                Text('${score.toStringAsFixed(0)}', style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
@@ -257,30 +193,18 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // ── 大盘指数 ──
-
   Widget _buildSectionTitle(String title) {
     return Row(
       children: [
-        Text(title,
-            style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w600)),
+        Text(title, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
         const Spacer(),
-        TextButton(
-          onPressed: _loadAllData,
-          child: const Text('刷新',
-              style: TextStyle(color: AppTheme.accent, fontSize: 12)),
-        ),
+        TextButton(onPressed: _loadAllData, child: const Text('刷新', style: TextStyle(color: AppTheme.accent, fontSize: 12))),
       ],
     );
   }
 
   Widget _buildIndexCards() {
-    if (_indices.isEmpty) {
-      return _buildEmptyWidget('暂无数据', '');
-    }
+    if (_indices.isEmpty) return _buildEmptyWidget('暂无数据', '');
     return SizedBox(
       height: 110,
       child: ListView.separated(
@@ -292,48 +216,23 @@ class _DashboardPageState extends State<DashboardPage> {
           final change = (idx['change'] as num?)?.toDouble() ?? 0;
           final color = AppTheme.changeColor(change);
           return Container(
-            width: 150,
-            padding: const EdgeInsets.all(14),
+            width: 150, padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppTheme.bgCard,
-                  AppTheme.bgCardAlt,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              gradient: LinearGradient(colors: [AppTheme.bgCard, AppTheme.bgCardAlt], begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(16),
-              border:
-                  Border.all(color: color.withOpacity(0.3), width: 0.5),
+              border: Border.all(color: color.withOpacity(0.3), width: 0.5),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(idx['name'] ?? '',
-                    style: const TextStyle(
-                        color: AppTheme.textSecondary, fontSize: 12)),
+                Text(idx['name'] ?? '', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
                 const Spacer(),
-                Text('${idx['price']}',
-                    style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold)),
+                Text('${idx['price']}', style: const TextStyle(color: AppTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${change >= 0 ? '+' : ''}${change.toStringAsFixed(2)}%',
-                    style: TextStyle(
-                        color: color,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600),
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                  child: Text('${change >= 0 ? '+' : ''}${change.toStringAsFixed(2)}%', style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
@@ -343,35 +242,17 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // ── 市场情绪 ──
-
   Widget _buildSentimentBar() {
-    if (_sentiment == null || _sentiment!.isEmpty) {
-      return _buildEmptyWidget('加载中...', '');
-    }
+    if (_sentiment == null || _sentiment!.isEmpty) return _buildEmptyWidget('加载中...', '');
     final index = (_sentiment!['sentiment_index'] as num?)?.toDouble() ?? 50;
     final interp = _sentiment!['interpretation'] ?? '';
     final action = _sentiment!['suggested_action'] ?? '';
-
-    Color barColor;
-    if (index >= 65) {
-      barColor = AppTheme.red;
-    } else if (index >= 45) {
-      barColor = AppTheme.yellow;
-    } else {
-      barColor = AppTheme.green;
-    }
-
-    final scores =
-        _sentiment!['scores'] as Map<String, dynamic>? ?? {};
+    final barColor = index >= 65 ? AppTheme.red : (index >= 45 ? AppTheme.yellow : AppTheme.green);
+    final scores = _sentiment!['scores'] as Map<String, dynamic>? ?? {};
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.bgCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: barColor.withOpacity(0.2)),
-      ),
+      decoration: BoxDecoration(color: AppTheme.bgCard, borderRadius: BorderRadius.circular(16), border: Border.all(color: barColor.withOpacity(0.2))),
       child: Column(
         children: [
           Row(
@@ -380,60 +261,32 @@ class _DashboardPageState extends State<DashboardPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(interp,
-                        style: TextStyle(
-                            color: barColor,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold)),
-                    Text('建议: $action',
-                        style: const TextStyle(
-                            color: AppTheme.textSecondary, fontSize: 12)),
+                    Text(interp, style: TextStyle(color: barColor, fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text('建议: $action', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
                   ],
                 ),
               ),
               SizedBox(
-                width: 56,
-                height: 56,
+                width: 56, height: 56,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    CircularProgressIndicator(
-                      value: index / 100,
-                      strokeWidth: 5,
-                      backgroundColor: barColor.withOpacity(0.15),
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(barColor),
-                    ),
-                    Text('${index.toStringAsFixed(0)}',
-                        style: TextStyle(
-                            color: barColor,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold)),
+                    CircularProgressIndicator(value: index / 100, strokeWidth: 5, backgroundColor: barColor.withOpacity(0.15), valueColor: AlwaysStoppedAnimation<Color>(barColor)),
+                    Text('${index.toStringAsFixed(0)}', style: TextStyle(color: barColor, fontSize: 16, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          // 情绪子维度
           Row(
             children: scores.entries.take(4).map((e) {
               final v = (e.value as num?)?.toDouble() ?? 0;
               return Expanded(
                 child: Column(
                   children: [
-                    Text('${v.toStringAsFixed(0)}',
-                        style: TextStyle(
-                            color: v >= 60
-                                ? AppTheme.red
-                                : (v >= 40
-                                    ? AppTheme.yellow
-                                    : AppTheme.green),
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold)),
-                    Text(_shortLabel(e.key),
-                        style: const TextStyle(
-                            color: AppTheme.textSecondary, fontSize: 10)),
+                    Text('${v.toStringAsFixed(0)}', style: TextStyle(color: v >= 60 ? AppTheme.red : (v >= 40 ? AppTheme.yellow : AppTheme.green), fontSize: 14, fontWeight: FontWeight.bold)),
+                    Text(_shortLabel(e.key), style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10)),
                   ],
                 ),
               );
@@ -455,81 +308,60 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  // ── 热门基金排名 ──
-
   Widget _buildFundRankList() {
-    if (_fundRanks.isEmpty) {
-      return _buildEmptyWidget('加载中...', '');
-    }
+    if (_fundRanks.isEmpty) return _buildEmptyWidget('扫描中...', '正在分析全市场ETF');
     return Column(
       children: _fundRanks.take(5).map((f) {
         final score = (f['total_score'] as num?)?.toDouble() ?? 0;
-        final rating = f['rating'] ?? '';
+        final signal = f['build_signal'] ?? '';
+        final change = (f['change_pct'] as num?)?.toDouble() ?? 0;
+        final flow = (f['capital_flow_pct'] as num?)?.toDouble();
+        final advice = f['short_term_advice'] ?? '';
 
-        Color ratingColor;
-        if (rating == 'S') {
-          ratingColor = const Color(0xFFFFD700);
-        } else if (rating == 'A') {
-          ratingColor = AppTheme.green;
-        } else if (rating == 'B') {
-          ratingColor = AppTheme.yellow;
-        } else {
-          ratingColor = AppTheme.grey;
-        }
+        Color sc;
+        if (signal.contains('强烈建仓')) sc = AppTheme.green;
+        else if (signal.contains('建议建仓')) sc = const Color(0xFF66BB6A);
+        else if (signal.contains('观察')) sc = AppTheme.yellow;
+        else sc = AppTheme.grey;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 6),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppTheme.bgCard,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: ratingColor.withOpacity(0.15)),
-          ),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: AppTheme.bgCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: sc.withOpacity(0.15))),
           child: Row(
             children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: ratingColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Center(
-                  child: Text(rating,
-                      style: TextStyle(
-                          color: ratingColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13)),
-                ),
-              ),
+              Container(width: 6, height: 40, decoration: BoxDecoration(color: sc, borderRadius: BorderRadius.circular(3))),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(f['name'] ?? '',
-                        style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14)),
-                    Text('${f['code'] ?? ''} | ${f['type'] ?? ''}',
-                        style: const TextStyle(
-                            color: AppTheme.textSecondary, fontSize: 11)),
+                    Row(
+                      children: [
+                        Text(f['name'] ?? '', style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600, fontSize: 13)),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(color: AppTheme.changeColor(change).withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
+                          child: Text('${change >= 0 ? '+' : ''}${change.toStringAsFixed(2)}%', style: TextStyle(color: AppTheme.changeColor(change), fontSize: 11, fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Text('${f['code'] ?? ''}', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10)),
+                        if (flow != null) ...[const SizedBox(width: 8), Text('主力${flow >= 0 ? '+' : ''}${flow.toStringAsFixed(1)}%', style: TextStyle(color: flow >= 0 ? AppTheme.green : AppTheme.red, fontSize: 10))],
+                      ],
+                    ),
+                    if (advice.isNotEmpty) Text(advice, style: const TextStyle(color: sc, fontSize: 10)),
                   ],
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text('${score.toStringAsFixed(0)}分',
-                    style: TextStyle(
-                        color: ratingColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600)),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(color: sc.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
+                child: Text('${score.toStringAsFixed(0)}分', style: TextStyle(color: sc, fontSize: 12, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -538,65 +370,36 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // ── 自选基金 ──
-
   Widget _buildWatchlistCards() {
     return Column(
       children: _watchlistData.map((f) {
         final change = (f['est_change'] as num?)?.toDouble();
-        final nav =
-            (f['est_nav'] as num?)?.toDouble() ?? (f['nav'] as num?)?.toDouble();
+        final nav = (f['est_nav'] as num?)?.toDouble() ?? (f['nav'] as num?)?.toDouble();
         return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppTheme.bgCard,
-            borderRadius: BorderRadius.circular(12),
-            border:
-                Border.all(color: const Color(0x338B5CF6), width: 0.5),
-          ),
+          margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: AppTheme.bgCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0x338B5CF6), width: 0.5)),
           child: Row(
             children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(f['name'] ?? '',
-                        style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontWeight: FontWeight.w600)),
+                    Text(f['name'] ?? '', style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 2),
-                    Text('${f['code']}',
-                        style: const TextStyle(
-                            color: AppTheme.textSecondary, fontSize: 12)),
+                    Text('${f['code']}', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
                   ],
                 ),
               ),
-              if (nav != null)
-                Text(nav.toStringAsFixed(4),
-                    style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.w500)),
+              if (nav != null) Text(nav.toStringAsFixed(4), style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w500)),
               const SizedBox(width: 12),
               if (change != null)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppTheme.changeColor(change).withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${change >= 0 ? '+' : ''}${change.toStringAsFixed(2)}%',
-                    style: TextStyle(
-                      color: AppTheme.changeColor(change),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: AppTheme.changeColor(change).withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                  child: Text('${change >= 0 ? '+' : ''}${change.toStringAsFixed(2)}%', style: TextStyle(color: AppTheme.changeColor(change), fontWeight: FontWeight.w600)),
                 )
               else
-                const Text('--',
-                    style: TextStyle(color: AppTheme.textSecondary)),
+                const Text('--', style: TextStyle(color: AppTheme.textSecondary)),
             ],
           ),
         );
@@ -604,21 +407,13 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // ── 市场雷达 ──
-
   Widget _buildRadarSection() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.primary.withOpacity(0.08),
-            AppTheme.accent.withOpacity(0.08)
-          ],
-        ),
+        gradient: LinearGradient(colors: [AppTheme.primary.withOpacity(0.08), AppTheme.accent.withOpacity(0.08)]),
         borderRadius: BorderRadius.circular(16),
-        border:
-            Border.all(color: AppTheme.primary.withOpacity(0.2), width: 0.5),
+        border: Border.all(color: AppTheme.primary.withOpacity(0.2), width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -627,17 +422,9 @@ class _DashboardPageState extends State<DashboardPage> {
             children: [
               const Icon(Icons.radar, color: AppTheme.accent, size: 18),
               const SizedBox(width: 8),
-              const Text('市场雷达',
-                  style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600)),
+              const Text('市场雷达', style: TextStyle(color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
               const Spacer(),
-              Text(
-                DateTime.now().toString().substring(0, 10),
-                style:
-                    const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
-              ),
+              Text(DateTime.now().toString().substring(0, 10), style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
             ],
           ),
           const SizedBox(height: 12),
@@ -645,8 +432,7 @@ class _DashboardPageState extends State<DashboardPage> {
           const SizedBox(height: 6),
           _radarItem(Icons.auto_graph, '策略回测', '自定义策略 + 参数优化 + 多策略对比'),
           const SizedBox(height: 6),
-          _radarItem(
-              Icons.assessment, '风险分析', 'VaR + 回撤分析 + 压力测试 + 尾部风险'),
+          _radarItem(Icons.assessment, '风险分析', 'VaR + 回撤分析 + 压力测试 + 尾部风险'),
         ],
       ),
     );
@@ -661,20 +447,12 @@ class _DashboardPageState extends State<DashboardPage> {
           children: [
             Icon(icon, color: AppTheme.accent, size: 16),
             const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        color: AppTheme.textPrimary, fontSize: 13)),
-                Text(subtitle,
-                    style: const TextStyle(
-                        color: AppTheme.textSecondary, fontSize: 11)),
-              ],
-            ),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13)),
+              Text(subtitle, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
+            ]),
             const Spacer(),
-            const Icon(Icons.chevron_right,
-                color: AppTheme.textSecondary, size: 16),
+            const Icon(Icons.chevron_right, color: AppTheme.textSecondary, size: 16),
           ],
         ),
       ),
@@ -683,27 +461,14 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildEmptyWidget(String text, String sub) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppTheme.bgCard,
-        borderRadius: BorderRadius.circular(16),
-        border:
-            Border.all(color: const Color(0x338B5CF6), width: 0.5),
-      ),
+      width: double.infinity, padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(color: AppTheme.bgCard, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0x338B5CF6), width: 0.5)),
       child: Column(
         children: [
-          Icon(Icons.inbox, size: 36,
-              color: AppTheme.textSecondary.withOpacity(0.4)),
+          Icon(Icons.inbox, size: 36, color: AppTheme.textSecondary.withOpacity(0.4)),
           const SizedBox(height: 8),
-          Text(text,
-              style: const TextStyle(color: AppTheme.textSecondary)),
-          if (sub.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(sub,
-                style: const TextStyle(
-                    color: AppTheme.textSecondary, fontSize: 12)),
-          ],
+          Text(text, style: const TextStyle(color: AppTheme.textSecondary)),
+          if (sub.isNotEmpty) ...[const SizedBox(height: 4), Text(sub, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12))],
         ],
       ),
     );

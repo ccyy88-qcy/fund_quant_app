@@ -54,3 +54,6 @@ from .market_sentiment import (
 from .holding_analysis import (
     calc_holding_period_analysis, compare_holding_strategies,
 )
+from .market_scanner import (
+    scan_etf_market, scan_build_candidates,
+)

@@ -207,7 +207,7 @@ class _HoldingAnalysisPageState extends State<HoldingAnalysisPage> {
           _summaryItem(
             '买入持有',
             '${bh ?? 0}%',
-            (bh as num?)?.toDouble() >= 0 ? AppTheme.green : AppTheme.red,
+            (bh is num && (bh as num) >= 0) ? AppTheme.green : AppTheme.red,
           ),
         ],
       ),

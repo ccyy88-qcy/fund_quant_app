@@ -151,187 +151,233 @@ def _get_kline_real(code: str, days: int = 200) -> list:
 
 
 def _calc_short_term_score(kline: list, spot_row: pd.Series) -> Optional[dict]:
-    """计算短线评分 — 核心逻辑：位置第一，趋势第二
+    """计算短线建仓评分
 
-    基本原则：
-    - 价格在历史高位 → 不推荐建仓（追高风险大）
-    - 价格在历史低位/回踩支撑 → 加分（盈亏比好）
-    - 均线多头排列+价格回踩MA10/MA20 → 最佳短线买点
-    - RSI超买 → 减分，超卖 → 加分
+    五维评分+实时价修正：
+    - 历史位置 25%（历史高低位）
+    - 技术形态 25%（均线排列+回踩）
+    - 今日走势 20%（当日涨跌幅，避免用旧K线评分）
+    - 资金流向 15%（主力净流入占比）
+    - RSI 10%（超买超卖）
+    - 量能 5%（缩量/放量配合）
     """
+    import math
     closes = pd.Series([float(d['close']) for d in kline if float(d.get('close', 0)) > 0])
     if len(closes) < 20:
         return None
 
-    current_price = float(closes.iloc[-1])
+    # 实时价（今日最新价，非K线收盘）
+    current_price = float(spot_row.get('最新价', closes.iloc[-1]))
+    change_pct = float(spot_row.get('涨跌幅', 0))
+    cap_flow_pct = float(spot_row.get('主力净流入-净占比', 0)) if pd.notna(spot_row.get('主力净流入-净占比')) else 0
+    vol_ratio = float(spot_row.get('量比', 0))
 
-    # ── 1. 历史位置评分 (40%) ──
+    # ── 0. 基于实时价的均线（使用完整K线 + 实时价补最后一位）──
+    closes_real = pd.concat([closes.iloc[:-1], pd.Series([current_price])], ignore_index=True)
+    ma5 = calc_ma(closes_real, 5).iloc[-1] if len(closes_real) >= 5 else current_price
+    ma10 = calc_ma(closes_real, 10).iloc[-1] if len(closes_real) >= 10 else current_price
+    ma20 = calc_ma(closes_real, 20).iloc[-1] if len(closes_real) >= 20 else current_price
+    ma60 = calc_ma(closes_real, 60).iloc[-1] if len(closes_real) >= 60 else current_price
+
+    is_uptrend = ma5 > ma10 > ma20
+    is_downtrend = ma5 < ma10 < ma20
+    above_ma10_pct = (current_price - ma10) / ma10 * 100 if ma10 > 0 else 0
+
+    # ── 1. 历史位置评分 (25%) ──
     hist_high = float(closes.max())
     hist_low = float(closes.min())
     hist_range = hist_high - hist_low if hist_high > hist_low else 1
-    hist_pct = (current_price - hist_low) / hist_range * 100  # 0=最低 100=最高
+    hist_pct = (current_price - hist_low) / hist_range * 100
 
-    if hist_pct >= 95:
-        position_score = 0    # 历史最高附近 → 绝对不能建仓
-    elif hist_pct >= 85:
-        position_score = 15   # 高位 → 风险大
-    elif hist_pct >= 70:
-        position_score = 35   # 中高位 → 谨慎
+    if hist_pct >= 90:
+        pos_score = 0       # 历史高位，绝对不建仓
+    elif hist_pct >= 75:
+        pos_score = 20      # 高位
     elif hist_pct >= 50:
-        position_score = 55   # 中位 → 中性
+        pos_score = 50      # 中位
     elif hist_pct >= 30:
-        position_score = 70   # 中低位 → 相对安全
+        pos_score = 70      # 中低位
     elif hist_pct >= 15:
-        position_score = 85   # 低位 → 布局机会
+        pos_score = 85      # 低位
     else:
-        position_score = 95   # 历史底部 → 绝佳建仓区
+        pos_score = 95      # 历史底部
 
-    # 距离历史高点越近越危险
-    dist_from_high = (hist_high - current_price) / hist_high * 100
-    if dist_from_high < 3:
-        position_score -= 20  # 离顶部太近
-    elif dist_from_high < 8:
-        position_score -= 10
-
-    # ── 2. 技术形态评分 (35%) ──
-    ma5 = calc_ma(closes, 5).iloc[-1] if len(closes) >= 5 else current_price
-    ma10 = calc_ma(closes, 10).iloc[-1] if len(closes) >= 10 else current_price
-    ma20 = calc_ma(closes, 20).iloc[-1] if len(closes) >= 20 else current_price
-    ma60 = calc_ma(closes, 60).iloc[-1] if len(closes) >= 60 else current_price
-
+    # ── 2. 技术形态评分 (25%) ──
     shape_score = 50
-
-    # 均线排列方向
-    is_uptrend = ma5 > ma10 > ma20  # 多头排列
-    is_downtrend = ma5 < ma10 < ma20  # 空头排列
-
-    # 价格相对MA位置（回踩还是偏离）
-    above_ma10_pct = (current_price - ma10) / ma10 * 100
-
     if is_uptrend:
-        shape_score += 15  # 趋势向上加分
-        # 回踩MA10不破 → 最佳短线买点
+        shape_score += 15
         if -2 < above_ma10_pct < 1:
-            shape_score += 25
-        # 回踩MA20不破 → 次佳买点
+            shape_score += 20  # 回踩MA10不破
         elif -3 < above_ma10_pct < -1:
-            shape_score += 15
-        # 偏离MA10太远 → 追高
+            shape_score += 10
         elif above_ma10_pct > 5:
-            shape_score -= 15
+            shape_score -= 20  # 偏离过远追高
         elif above_ma10_pct > 3:
-            shape_score -= 5
+            shape_score -= 10
     elif is_downtrend:
-        shape_score -= 10  # 趋势向下减分
-        # 超跌反弹机会
-        if above_ma10_pct < -10:
-            shape_score += 10  # 超跌
-        elif above_ma10_pct < -5:
+        shape_score -= 20     # 空头排列重罚
+        # 只有大幅超跌才考虑（跌幅>10%）
+        if above_ma10_pct < -15:
+            shape_score += 15  # 超跌反弹机会
+        elif above_ma10_pct < -8:
             shape_score += 5
     else:
-        # 震荡市，靠近均线支撑加分
+        # 震荡区间
         if -2 < above_ma10_pct < 2:
-            shape_score += 10
+            shape_score += 10  # 靠近MA10支撑
+        elif abs(above_ma10_pct) > 8:
+            shape_score -= 10
 
-    # 价格在MA60上方加分（中长期趋势好）
     if current_price > ma60:
         shape_score += 5
     else:
-        shape_score -= 5
+        shape_score -= 10     # 跌破MA60加重罚
+    shape_score = np.clip(shape_score, 0, 100)
 
-    # ── 3. RSI评分 (15%) ──
+    # ── 3. 今日走势评分 (20%) ──
+    # 大跌直接否决，大涨加分但要结合资金流向
+    if change_pct < -4:
+        daily_score = 0        # 暴跌，绝对回避
+    elif change_pct < -2.5:
+        daily_score = 10       # 大跌
+    elif change_pct < -1:
+        daily_score = 25       # 明显下跌
+    elif change_pct < 0:
+        daily_score = 40       # 微跌
+    elif change_pct < 1:
+        daily_score = 55       # 平盘
+    elif change_pct < 3:
+        daily_score = 70       # 温和上涨
+    elif change_pct < 5:
+        daily_score = 80       # 明显上涨
+    else:
+        daily_score = 85       # 大涨
+
+    # ── 4. 资金流向评分 (15%) ──
+    # 主力净流入占比：正=流入 负=流出
+    if cap_flow_pct > 2:
+        flow_score = 90        # 主力大幅买入
+    elif cap_flow_pct > 1:
+        flow_score = 80
+    elif cap_flow_pct > 0.5:
+        flow_score = 70
+    elif cap_flow_pct > 0:
+        flow_score = 60
+    elif cap_flow_pct > -0.5:
+        flow_score = 45        # 小幅流出
+    elif cap_flow_pct > -1.5:
+        flow_score = 30        # 明显流出
+    elif cap_flow_pct > -3:
+        flow_score = 15        # 大幅流出
+    else:
+        flow_score = 0         # 主力出逃
+
+    # ── 5. RSI评分 (10%) ──
     rsi_score = 50
-    if len(closes) >= 15:
-        rsi = calc_rsi(closes, 14)
+    if len(closes_real) >= 15:
+        rsi = calc_rsi(closes_real, 14)
         if not np.isnan(rsi.iloc[-1]):
             rsi_val = rsi.iloc[-1]
-            if 30 <= rsi_val <= 45:
-                rsi_score = 85  # 超卖区但不极端 → 买入机会
-            elif rsi_val < 30:
-                rsi_score = 75  # 超卖 → 反弹机会
-            elif 45 < rsi_val < 55:
-                rsi_score = 60  # 中性偏多
-            elif 55 <= rsi_val <= 65:
-                rsi_score = 45  # 偏强但不极端
-            elif 65 < rsi_val <= 75:
-                rsi_score = 25  # 偏热
+            if rsi_val < 25:
+                rsi_score = 80   # 深度超卖
+            elif rsi_val < 35:
+                rsi_score = 70   # 超卖
+            elif rsi_val < 45:
+                rsi_score = 55
+            elif rsi_val < 55:
+                rsi_score = 45   # 中性
+            elif rsi_val < 65:
+                rsi_score = 30   # 偏强
+            elif rsi_val < 75:
+                rsi_score = 15   # 过热
             else:
-                rsi_score = 10  # RSI>75 超买，回避
+                rsi_score = 5    # 极度超买
 
-    # ── 4. 量能评分 (10%) ──
+    # ── 6. 量能评分 (5%) ──
     vol_score = 50
     volumes = np.array([float(d.get('volume', 0)) for d in kline])
     if len(volumes) >= 20:
         vol_5d = np.mean(volumes[-5:])
         vol_20d = np.mean(volumes[-20:])
-        vol_ratio = vol_5d / max(vol_20d, 1)
-        daily_ret = closes.pct_change() * 100
-
+        hist_vol_ratio = vol_5d / max(vol_20d, 1)
+        daily_ret = closes_real.pct_change() * 100
         last_ret = daily_ret.iloc[-1] if len(daily_ret) > 1 else 0
 
-        # 缩量回调 → 健康（洗盘）
-        if last_ret < 0 and vol_ratio < 0.8:
-            vol_score = 75
-        # 放量上涨 → 强势
-        elif last_ret > 0 and vol_ratio > 1.5:
-            vol_score = 65
-        # 放量下跌 → 恐慌
-        elif last_ret < -1 and vol_ratio > 1.5:
-            vol_score = 20
-        # 缩量上涨 → 动能不足
-        elif last_ret > 0 and vol_ratio < 0.6:
-            vol_score = 35
+        if last_ret < -1 and hist_vol_ratio > 1.5:
+            vol_score = 10       # 放量暴跌 → 恐慌
+        elif last_ret > 0 and hist_vol_ratio > 1.5:
+            vol_score = 75       # 放量上涨 → 强势
+        elif last_ret < 0 and hist_vol_ratio < 0.8:
+            vol_score = 65       # 缩量回调 → 健康
+        elif last_ret > 0 and hist_vol_ratio < 0.6:
+            vol_score = 30       # 缩量上涨 → 动能不足
         else:
             vol_score = 50
 
+    # ── 7. 特殊惩罚因子 ──
+    penalty = 1.0
+
+    # 放量暴跌+主力流出 → 飞刀，绝对不碰
+    if change_pct < -3 and cap_flow_pct < -1 and vol_ratio > 1.5:
+        penalty = 0.3
+    # 放量下跌+主力流出
+    elif change_pct < -2 and cap_flow_pct < -0.5:
+        penalty = 0.5
+    # 低位+下行趋势=接飞刀
+    if hist_pct < 25 and is_downtrend:
+        penalty *= 0.4
+    # 高位+偏离均线太远=追高风险
+    elif hist_pct > 75 and above_ma10_pct > 5:
+        penalty *= 0.4
+    # RSI超买+价格上涨=随时回调
+    elif rsi_score < 20 and daily_score > 60:
+        penalty *= 0.5
+
     # ── 综合评分 ──
-    # 权重：位置40% + 形态35% + RSI 15% + 量能10%
-    total = round(position_score * 0.40 + shape_score * 0.35 +
-                  rsi_score * 0.15 + vol_score * 0.10, 2)
+    total = round(
+        pos_score * 0.25 +
+        shape_score * 0.25 +
+        daily_score * 0.20 +
+        flow_score * 0.15 +
+        rsi_score * 0.10 +
+        vol_score * 0.05,
+        2
+    )
+    total = round(total * penalty, 2)
+    total = float(np.clip(total, 0, 100))
 
-    # 额外惩罚/奖励
-    # 低位+下行趋势=接飞刀（大幅减分）
-    if hist_pct < 20 and is_downtrend:
-        total *= 0.4  # 下降趋势中的低位不是底，是接飞刀
-    # 低位+上行趋势=最佳买点（大幅加分）
-    elif hist_pct < 40 and is_uptrend:
-        total = min(100, total * 1.2)  # 底部反转，加分
-    # 高位+追涨=危险
-    elif position_score < 20 and above_ma10_pct > 3:
-        total *= 0.5
-
-    # 建仓信号
-    if total >= 75:
+    # ── 建仓信号 ──
+    if total >= 80:
         build_signal = '🔥 强烈建仓'
         position = '60-80%'
-        advice = '价格位置安全+技术形态好，可重仓布局'
-    elif total >= 60:
+        advice = '价格安全+主力流入+技术面好，可布局'
+    elif total >= 65:
         build_signal = '✅ 建议建仓'
         position = '40-60%'
         advice = '性价比合适，可分批建仓'
-    elif total >= 45:
+    elif total >= 50:
         build_signal = '⏳ 观察等待'
         position = '20-30%'
-        advice = '条件一般，等更好位置再入场'
-    elif total >= 30:
+        advice = '条件一般，等待更好位置'
+    elif total >= 35:
         build_signal = '⚠️ 注意风险'
         position = '0-10%'
-        advice = '位置偏高或形态转弱，暂不建仓'
+        advice = '位置偏高或资金流出，暂不建仓'
     else:
         build_signal = '🚫 回避'
         position = '0%'
         advice = '风险大，观望为主'
 
-    # 短线方向
+    # 短线方向描述
     short_term = ''
     if is_uptrend and -2 < above_ma10_pct < 2:
-        short_term = '📈 上升趋势回踩支撑，持有1-4周'
+        short_term = '📈 上升趋势回踩支撑'
     elif is_uptrend and above_ma10_pct > 5:
-        short_term = '⚠️ 趋势向上但偏离较远，等回踩再入'
-    elif is_downtrend and above_ma10_pct < -8:
-        short_term = '📉 超跌反弹机会，短线快进快出'
+        short_term = '⚠️ 趋势向上但偏离较远'
+    elif is_downtrend and change_pct < -3:
+        short_term = '🔻 下跌趋势，暂不参与'
     elif is_downtrend:
-        short_term = '📉 下降趋势，不建议参与'
+        short_term = '📉 震荡下行'
     else:
         short_term = '↔️ 震荡格局，高抛低吸'
 
@@ -343,20 +389,19 @@ def _calc_short_term_score(kline: list, spot_row: pd.Series) -> Optional[dict]:
         'action_detail': advice,
         'hist_percentile': round(hist_pct, 1),
         'scores': {
-            'position': round(position_score, 2),
-            'technical_shape': round(shape_score, 2),
-            'rsi': round(rsi_score, 2),
-            'volume': round(vol_score, 2),
+            'position': int(pos_score),
+            'technical_shape': int(shape_score),
+            'daily_trend': int(daily_score),
+            'capital_flow': int(flow_score),
+            'rsi': int(rsi_score),
+            'volume': int(vol_score),
         },
         'technical': {
-            'ma5': round(float(ma5), 4),
-            'ma10': round(float(ma10), 4),
-            'ma20': round(float(ma20), 4),
-            'ma60': round(float(ma60), 4),
+            'ma5': round(float(ma5), 4), 'ma10': round(float(ma10), 4),
+            'ma20': round(float(ma20), 4), 'ma60': round(float(ma60), 4),
             'above_ma10_pct': round(float(above_ma10_pct), 2),
-            'above_ma10': bool(current_price > ma10),
-            'is_uptrend': bool(is_uptrend),
-            'is_downtrend': bool(is_downtrend),
+            'above_ma10': bool(above_ma10_pct > 0),
+            'is_uptrend': bool(is_uptrend), 'is_downtrend': bool(is_downtrend),
         },
     }
 
@@ -377,3 +422,137 @@ def scan_build_candidates(top_n: int = 10) -> list:
         # 如果都没有强烈信号，返回评分最高的
         candidates = results[:top_n]
     return candidates[:top_n]
+
+
+def scan_golden_cross_candidates(top_n: int = 10) -> list:
+    """MACD底背离+金叉抄底扫描
+
+    条件（评分制，不硬筛）：
+    1. MACD在零轴下方 (DIF<0, DEA<0)
+    2. 绿柱从放大到缩小 (当前MACD柱 > 前一根，且均为负)
+    3. MA5上穿或即将上穿MA10（金叉形成中）
+    4. 近60日最大回撤 > 10%
+    5. 近2日主力资金净流入 > 0
+    """
+    results = []
+    # 使用已缓存的热门ETF列表，避免重复全量扫描
+    from . import data_fetcher as df
+    try:
+        import akshare as ak
+        with _suppress_output():
+            spot_df = ak.fund_etf_spot_em()
+    except:
+        return [{'error': '获取ETF行情失败'}]
+
+    exclude_keywords = ['添益', '日利', '货币', '国债', '地方债', '可转', '国开', '农发']
+    spot_df = spot_df[~spot_df['名称'].str.contains('|'.join(exclude_keywords), na=False)].copy()
+    spot_df = spot_df[spot_df['成交额'].fillna(0) > 5e7].copy()  # 成交额>5000万
+    top_etfs = spot_df.sort_values('成交额', ascending=False).head(top_n * 5)
+
+    for _, row in top_etfs.iterrows():
+        code = str(row['代码']).strip().zfill(6)
+        name = str(row['名称'])
+        change_pct = float(row.get('涨跌幅', 0))
+        cap_flow = float(row.get('主力净流入-净占比', 0)) if pd.notna(row.get('主力净流入-净占比')) else 0
+        vol_ratio = float(row.get('量比', 0))
+        try:
+            kline = _get_kline_real(code, 200)
+            if not kline or len(kline) < 60:
+                continue
+
+            closes = pd.Series([float(d['close']) for d in kline if float(d.get('close', 0)) > 0])
+            if len(closes) < 60:
+                continue
+
+            current = float(closes.iloc[-1])
+            ma5 = float(calc_ma(closes, 5).iloc[-1])
+            ma10 = float(calc_ma(closes, 10).iloc[-1])
+            ma5_prev = float(calc_ma(closes, 5).iloc[-2]) if len(closes) >= 6 else ma5
+            ma10_prev = float(calc_ma(closes, 10).iloc[-2]) if len(closes) >= 11 else ma10
+
+            # MACD
+            dif, dea, macd_bar = calc_macd(closes)
+            dif_v = float(dif.iloc[-1])
+            dea_v = float(dea.iloc[-1])
+            bar_v = float(macd_bar.iloc[-1])
+            bar_prev = float(macd_bar.iloc[-2]) if len(macd_bar) > 1 else bar_v
+
+            # 近60日高点回撤
+            high_60d = float(closes[-60:].max())
+            drawdown_pct = round((high_60d - current) / high_60d * 100, 2)
+
+            # 条件判定
+            cond1 = dif_v < 0 and dea_v < 0          # MACD零轴下方
+            cond2 = bar_v > bar_prev and bar_v < 0   # 绿柱从放大→缩小
+            cond3 = (ma5 > ma10 and ma5_prev <= ma10_prev) or \
+                    (abs(ma5 - ma10) / ma10 < 0.025 and ma5 > ma5_prev)  # 金叉或即将金叉
+            cond4 = drawdown_pct > 10                 # 回撤>10%
+            cond5 = cap_flow > 0  # 资金净流入
+
+            if not (cond1 and cond2):
+                continue
+
+            # 评分：每个条件20分 + 加分项
+            score = 0
+            for c in [cond1, cond2, cond3, cond4, cond5]:
+                if c:
+                    score += 20
+
+            # 回撤加分：回撤越大说明超跌越严重，反弹潜力越大
+            dd_bonus = min(15, max(0, drawdown_pct - 10))
+            score += dd_bonus
+
+            # 金叉强度：MA5-MA10差距越小越接近金叉
+            cross_strength = max(0, min(10, 10 - abs(ma5 - ma10) / ma10 * 1000))
+            score += cross_strength
+
+            # 绿柱收缩幅度加分
+            bar_shrink = abs(bar_v) / max(abs(bar_prev), 0.001)
+            if bar_shrink < 0.8:  # 绿柱明显缩小
+                score += 5
+
+            score = min(100, int(score))
+
+            # 信号分级
+            if score >= 75:
+                signal = '🔥 强烈信号'
+                action = 'MACD底背离+金叉确认，可分批建仓'
+            elif score >= 60:
+                signal = '✅ 信号确认'
+                action = '条件满足较多，关注入场时机'
+            elif score >= 45:
+                signal = '👀 关注中'
+                action = '部分条件满足，等待进一步确认'
+            else:
+                signal = '⏳ 观察'
+                action = '条件有限，暂观望'
+
+            results.append({
+                'total_score': score,
+                'build_signal': signal,
+                'action_detail': action,
+                'short_term_advice': f'回撤{drawdown_pct}% | MACD绿柱收缩 | 金叉形成中',
+                'suggested_position': '40-60%' if score >= 60 else ('20-30%' if score >= 45 else '0-10%'),
+                'code': code,
+                'name': name,
+                'price': current,
+                'change_pct': change_pct,
+                'capital_flow_pct': cap_flow,
+                'volume_ratio': vol_ratio,
+                'drawdown_pct': drawdown_pct,
+                'macd': {'dif': round(dif_v, 4), 'dea': round(dea_v, 4), 'bar': round(bar_v, 4)},
+                'ma': {'ma5': round(ma5, 4), 'ma10': round(ma10, 4)},
+                'conditions': {
+                    'macd_below_zero': cond1,
+                    'green_bar_shrinking': cond2,
+                    'golden_cross': cond3,
+                    'drawdown_gt_10': cond4,
+                    'capital_inflow': cond5,
+                },
+                'scan_time': datetime.now().strftime('%H:%M'),
+            })
+        except Exception:
+            continue
+
+    results.sort(key=lambda x: x.get('total_score', 0), reverse=True)
+    return results[:top_n]

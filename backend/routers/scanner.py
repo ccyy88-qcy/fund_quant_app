@@ -82,3 +82,14 @@ async def analyze_etf(code: str = Query('562360', description='ETF代码')):
         'signal': calc_signal_v4(kline),
     }
     return {'data': result}
+
+
+@router.get('/golden-cross')
+async def golden_cross(top_n: int = Query(10, description='返回数量')):
+    """MACD底背离+金叉抄底扫描"""
+    import asyncio
+    try:
+        results = await asyncio.to_thread(ms.scan_golden_cross_candidates, top_n=top_n)
+        return {'data': results, 'source': 'golden_cross', 'count': len(results)}
+    except Exception as e:
+        return {'data': [], 'source': 'error', 'error': str(e)}

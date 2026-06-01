@@ -377,4 +377,11 @@ class ApiService {
         queryParameters: {'code': code});
     return res.data['data'] ?? {};
   }
+
+  /// MACD底背离+金叉抄底扫描
+  Future<List<dynamic>> getGoldenCross({int topN = 10}) async {
+    final res = await _dio.get('/api/scanner/golden-cross',
+        queryParameters: {'top_n': topN});
+    return res.data['data'] ?? [];
+  }
 }

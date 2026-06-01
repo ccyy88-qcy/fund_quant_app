@@ -15,7 +15,7 @@ class _DashboardPageState extends State<DashboardPage> {
   final _api = ApiService();
   List<dynamic> _indices = [];
   List<dynamic> _watchlistData = [];
-  List<dynamic> _fundRanks = [];
+  List<dynamic> _goldenCross = [];
   Map<String, dynamic>? _sentiment;
   Map<String, dynamic>? _buildSignal;
   bool _loading = true;
@@ -33,7 +33,7 @@ class _DashboardPageState extends State<DashboardPage> {
       final results = await Future.wait([
         _api.getIndex().catchError((_) => <dynamic>[]),
         _api.getWatchlistRealtime().catchError((_) => <dynamic>[]),
-        _api.getBuildCandidates(topN: 10).catchError((_) => <dynamic>[]),
+        _api.getGoldenCross(topN: 10).catchError((_) => <dynamic>[]),
         _api.getMarketSentiment().catchError((_) => <Map<String, dynamic>>{}),
         _api.getBuildSignal('562360').catchError((_) => <String, dynamic>{}),
       ]);
@@ -41,7 +41,7 @@ class _DashboardPageState extends State<DashboardPage> {
       setState(() {
         _indices = results[0] as List<dynamic>;
         _watchlistData = results[1] as List<dynamic>;
-        _fundRanks = results[2] as List<dynamic>;
+        _goldenCross = results[2] as List<dynamic>;
         _sentiment = results[3] as Map<String, dynamic>?;
         _buildSignal = results[4] as Map<String, dynamic>?;
         _loading = false;
@@ -98,7 +98,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         const SizedBox(height: 8),
                         _buildSentimentBar(),
                         const SizedBox(height: 16),
-                        _buildSectionTitle('🔥 实时建仓推荐（真实市场数据）'),
+                        _buildSectionTitle('🔥 MACD金叉抄底信号'),
                         const SizedBox(height: 8),
                         _buildFundRankList(),
                         const SizedBox(height: 16),
@@ -309,64 +309,113 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildFundRankList() {
-    if (_fundRanks.isEmpty) return _buildEmptyWidget('扫描中...', '正在分析全市场ETF');
+    if (_goldenCross.isEmpty) return _buildEmptyWidget('扫描中...', '正在分析MACD金叉信号');
     return Column(
-      children: _fundRanks.take(5).map((f) {
+      children: _goldenCross.take(5).map((f) {
         final score = (f['total_score'] as num?)?.toDouble() ?? 0;
         final signal = f['build_signal'] ?? '';
         final change = (f['change_pct'] as num?)?.toDouble() ?? 0;
-        final flow = (f['capital_flow_pct'] as num?)?.toDouble();
+        final flow = (f['capital_flow_pct'] as num?)?.toDouble() ?? 0;
+        final dd = (f['drawdown_pct'] as num?)?.toDouble() ?? 0;
         final advice = f['short_term_advice'] ?? '';
+        final cond = f['conditions'] as Map<String, dynamic>? ?? {};
+        final macd = f['macd'] as Map<String, dynamic>? ?? {};
 
+        // 信号颜色
         Color sc;
-        if (signal.contains('强烈建仓')) sc = AppTheme.green;
-        else if (signal.contains('建议建仓')) sc = const Color(0xFF66BB6A);
-        else if (signal.contains('观察')) sc = AppTheme.yellow;
+        if (signal.contains('强烈')) sc = const Color(0xFF8B5CF6);
+        else if (signal.contains('确认')) sc = const Color(0xFF66BB6A);
+        else if (signal.contains('关注')) sc = AppTheme.yellow;
         else sc = AppTheme.grey;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 6),
           padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: AppTheme.bgCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: sc.withOpacity(0.15))),
-          child: Row(
+          decoration: BoxDecoration(
+            color: AppTheme.bgCard,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: sc.withOpacity(0.15)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(width: 6, height: 40, decoration: BoxDecoration(color: sc, borderRadius: BorderRadius.circular(3))),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(f['name'] ?? '', style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600, fontSize: 13)),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                          decoration: BoxDecoration(color: AppTheme.changeColor(change).withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
-                          child: Text('${change >= 0 ? '+' : ''}${change.toStringAsFixed(2)}%', style: TextStyle(color: AppTheme.changeColor(change), fontSize: 11, fontWeight: FontWeight.w600)),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Text('${f['code'] ?? ''}', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10)),
-                        if (flow != null) ...[const SizedBox(width: 8), Text('主力${flow >= 0 ? '+' : ''}${flow.toStringAsFixed(1)}%', style: TextStyle(color: flow >= 0 ? AppTheme.green : AppTheme.red, fontSize: 10))],
-                      ],
-                    ),
-                    if (advice.isNotEmpty) Text(advice, style: TextStyle(color: sc, fontSize: 10)),
-                  ],
-                ),
+              // 第一行：名称 + 分数 + 信号
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(f['name'] ?? '', style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600, fontSize: 13)),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: sc.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                    child: Text(signal, style: TextStyle(color: sc, fontSize: 10, fontWeight: FontWeight.w600)),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: const Color(0xFF00D4FF).withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                    child: Text('${score.toInt()}分', style: const TextStyle(color: Color(0xFF00D4FF), fontSize: 11, fontWeight: FontWeight.bold)),
+                  ),
+                ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                decoration: BoxDecoration(color: sc.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
-                child: Text('${score.toStringAsFixed(0)}分', style: TextStyle(color: sc, fontSize: 12, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              // 第二行：技术指标
+              Row(
+                children: [
+                  _miniChip('回撤', '${dd.toStringAsFixed(1)}%', dd >= 10 ? AppTheme.red : AppTheme.yellow),
+                  const SizedBox(width: 6),
+                  _miniChip('今日', '${change >= 0 ? '+' : ''}${change.toStringAsFixed(1)}%', AppTheme.changeColor(change)),
+                  const SizedBox(width: 6),
+                  _miniChip('主力', '${flow >= 0 ? '+' : ''}${flow.toStringAsFixed(1)}%', flow > 0 ? const Color(0xFF8B5CF6) : AppTheme.red),
+                  const SizedBox(width: 6),
+                  _miniChip('DIF', '${(macd['dif'] as num?)?.toStringAsFixed(3) ?? '?'}', AppTheme.textSecondary),
+                ],
               ),
+              const SizedBox(height: 4),
+              // 第三行：条件达成 + MACD柱
+              Row(
+                children: [
+                  _condIcon(cond['macd_below_zero'] == true, '零轴下'),
+                  const SizedBox(width: 4),
+                  _condIcon(cond['green_bar_shrinking'] == true, '柱收缩'),
+                  const SizedBox(width: 4),
+                  _condIcon(cond['golden_cross'] == true, '金叉'),
+                  const SizedBox(width: 4),
+                  _condIcon(cond['drawdown_gt_10'] == true, '超跌'),
+                  const SizedBox(width: 4),
+                  _condIcon(cond['capital_inflow'] == true, '资金'),
+                  const Spacer(),
+                  Text('柱${(macd['bar'] as num?)?.toStringAsFixed(3) ?? ''}',
+                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 9)),
+                ],
+              ),
+              if (advice.isNotEmpty) ...[const SizedBox(height: 2), Text(advice, style: TextStyle(color: sc.withOpacity(0.8), fontSize: 10))],
             ],
           ),
         );
       }).toList(),
+    );
+  }
+
+  Widget _miniChip(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(4)),
+      child: Text('$label $value', style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w500)),
+    );
+  }
+
+  Widget _condIcon(bool met, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+      decoration: BoxDecoration(
+        color: met ? const Color(0xFF4CAF50).withOpacity(0.15) : const Color(0xFF666666).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text('$label${met ? '✓' : '✗'}', style: TextStyle(
+        color: met ? const Color(0xFF4CAF50) : const Color(0xFF666666),
+        fontSize: 8, fontWeight: FontWeight.w500,
+      )),
     );
   }
 

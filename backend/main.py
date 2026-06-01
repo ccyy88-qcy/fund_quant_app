@@ -28,18 +28,6 @@ from routers import funds, market, factors, rotation, portfolio, strategy, risk,
 
 app = FastAPI(title='基金全量量化工具', version='1.0.0', default_response_class=NumpyJSONResponse)
 
-# 启动时后台预热ETF扫描缓存
-@app.on_event('startup')
-async def warm_scan_cache():
-    import asyncio, threading
-    def _warm():
-        try:
-            from quant_engine.market_scanner import scan_build_candidates
-            scan_build_candidates(top_n=10)
-        except:
-            pass
-    threading.Thread(target=_warm, daemon=True).start()
-
 # CORS — 允许Flutter App跨域
 app.add_middleware(
     CORSMiddleware,

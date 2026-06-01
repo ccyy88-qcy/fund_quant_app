@@ -449,7 +449,11 @@ def scan_golden_cross_candidates(top_n: int = 10) -> list:
     spot_df = spot_df[spot_df['成交额'].fillna(0) > 5e7].copy()  # 成交额>5000万
     top_etfs = spot_df.sort_values('成交额', ascending=False).head(top_n * 10)
 
-    for _, row in top_etfs.iterrows():
+    max_analyze = min(len(top_etfs), 30)  # 最多分析30只
+
+    for idx, (_, row) in enumerate(top_etfs.iterrows()):
+        if idx >= max_analyze:
+            break
         code = str(row['代码']).strip().zfill(6)
         name = str(row['名称'])
         change_pct = float(row.get('涨跌幅', 0))

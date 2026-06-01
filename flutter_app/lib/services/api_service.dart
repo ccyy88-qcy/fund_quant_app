@@ -381,7 +381,8 @@ class ApiService {
   /// MACD底背离+金叉抄底扫描
   Future<List<dynamic>> getGoldenCross({int topN = 10}) async {
     final res = await _dio.get('/api/scanner/golden-cross',
-        queryParameters: {'top_n': topN});
+        queryParameters: {'top_n': topN},
+        options: Options(receiveTimeout: const Duration(seconds: 50)));
     return res.data['data'] ?? [];
   }
 }

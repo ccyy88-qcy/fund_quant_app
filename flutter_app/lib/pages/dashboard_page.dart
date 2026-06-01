@@ -312,7 +312,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _buildFundRankList() {
     if (_goldenCross.isEmpty) return _buildEmptyWidget('扫描中...', '正在分析MACD金叉信号');
     return Column(
-      children: _goldenCross.take(5).map((f) {
+      children: _goldenCross.take(10).map((f) {
         final score = (f['total_score'] as num?)?.toDouble() ?? 0;
         final signal = f['build_signal'] ?? '';
         final change = (f['change_pct'] as num?)?.toDouble() ?? 0;

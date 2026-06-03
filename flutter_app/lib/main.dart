@@ -5,7 +5,6 @@ import '../theme/app_theme.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/quant_home_page.dart';
 import 'pages/strategy_home_page.dart';
-import 'pages/stock_monitor_page.dart';
 import 'pages/kline_page.dart';
 import 'pages/settings_page.dart';
 
@@ -72,7 +71,7 @@ class _MainShellState extends State<MainShell> {
     const DashboardPage(),
     const QuantHomePage(),
     const StrategyHomePage(),
-    const StockMonitorPage(),
+    const KlinePage(),
     const SettingsPage(),
   ];
 
@@ -106,9 +105,9 @@ class _MainShellState extends State<MainShell> {
               label: '策略中心',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.analytics_outlined),
-              activeIcon: Icon(Icons.analytics),
-              label: '股票监控',
+              icon: Icon(Icons.show_chart_outlined),
+              activeIcon: Icon(Icons.show_chart),
+              label: 'K线分析',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.settings_outlined),

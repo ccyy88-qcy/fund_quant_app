@@ -102,6 +102,52 @@ def get_fund_info(code: str) -> dict:
 
 # ─── K线数据 ───
 
+def _forward_adjust(kline: list) -> list:
+    """对K线数据做前复权调整（原地修改并返回）
+
+    检测条件（全部满足才识别为除权）：
+      ① 开盘缺口≥3.5%（排除日常波动，只捕捉分红/拆股级跳空）
+      ② 缺口<80%（超过80%是数据异常）
+      ③ 当日跌了：缺口占跌幅≥70%（排除恐慌低开继续下跌）
+      ④ 当日涨了：缺口≥3%（市场反弹可以覆盖除权，但缺口要足够大）
+    """
+    if not kline or len(kline) < 10:
+        return kline
+    has_real_volume = any(float(d.get('volume', 0)) > 0 for d in kline)
+    if not has_real_volume:
+        return kline
+
+    # 步骤①：基于原始价格检测所有除权日
+    orig_closes = [float(d['close']) for d in kline]
+    orig_opens = [float(d['open']) for d in kline]
+    ex_dividend_indices = []
+    for i in range(1, len(kline)):
+        prev_c = orig_closes[i-1]
+        curr_c = orig_closes[i]
+        curr_o = orig_opens[i]
+        if prev_c > 0:
+            open_gap = (prev_c - curr_o) / prev_c
+            drop_ratio = (prev_c - curr_c) / prev_c
+            if 0.035 < open_gap < 0.80:
+                if drop_ratio > 0:
+                    if open_gap >= drop_ratio * 0.7:
+                        ex_dividend_indices.append(i)
+                else:
+                    if open_gap >= 0.030:
+                        ex_dividend_indices.append(i)
+
+    # 步骤②：从前往后逐次前复权调整（最早除权先调，保证累积正确）
+    for idx in ex_dividend_indices:
+        prev_c = orig_closes[idx-1]
+        curr_o = orig_opens[idx]
+        adj = curr_o / prev_c  # 以开盘价计算复权因子
+        for j in range(idx):
+            for field in ['open', 'high', 'low', 'close']:
+                kline[j][field] = round(float(kline[j][field]) * adj, 4)
+
+    return kline
+
+
 def get_kline(code: str, days: int = 500) -> list:
     """获取基金/ETF日K线"""
     cache_key = f"kline:{code}:{days}"
@@ -110,40 +156,35 @@ def get_kline(code: str, days: int = 500) -> list:
         return cached
 
     kline = []
-    # 策略1: 新浪财经ETF K线API（优先，Termux兼容）
+    # 策略1: 新浪财经ETF K线API（优先）
     try:
         prefix = "sh" if code.startswith("51") or code.startswith("56") else "sz"
         url = f'https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol={prefix}{code}&scale=240&datalen={min(days, 2000)}'
-        resp = httpx.get(url, timeout=15)
-        data = json.loads(resp.text)
-        if data and len(data) > 0:
-            for d in data[-days:]:
-                kline.append({
-                    'day': str(d['day'])[:10],
-                    'open': float(d['open']),
-                    'high': float(d['high']),
-                    'low': float(d['low']),
-                    'close': float(d['close']),
-                    'volume': float(d.get('volume', 0)),
-                })
-            # 检测除权除息跳变并做前复权
-            for i in range(1, len(kline)):
-                prev_c = float(kline[i-1]['close'])
-                curr_c = float(kline[i]['close'])
-                if prev_c > 0 and (prev_c - curr_c) / prev_c > 0.12:
-                    ratio = curr_c / prev_c  # 复权比例
-                    # 将除权日之前的所有价格按比例下调（前复权）
-                    for j in range(i):
-                        for field in ['open', 'high', 'low', 'close']:
-                            kline[j][field] = round(float(kline[j][field]) * ratio, 4)
-                    break
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': 'https://finance.sina.com.cn/',
+        }
+        resp = httpx.get(url, headers=headers, timeout=15)
+        if resp.status_code == 200:
+            data = json.loads(resp.text)
+            if data and len(data) > 0:
+                for d in data[-days:]:
+                    kline.append({
+                        'day': str(d['day'])[:10],
+                        'open': float(d['open']),
+                        'high': float(d['high']),
+                        'low': float(d['low']),
+                        'close': float(d['close']),
+                        'volume': float(d.get('volume', 0)),
+                    })
+                kline = _forward_adjust(kline)
     except:
         pass
 
-    # 策略2: 东方财富ETF历史行情（备用）
+    # 策略2: 东方财富ETF历史行情（备用，取原始数据自行前复权）
     if not kline:
         try:
-            df = ak.fund_etf_hist_em(symbol=code, period="daily", start_date="20180101", adjust="qfq")
+            df = ak.fund_etf_hist_em(symbol=code, period="daily", start_date="20180101", adjust="")
             if df is not None and len(df) > 0:
                 df = df.tail(days)
                 for _, r in df.iterrows():
@@ -155,6 +196,7 @@ def get_kline(code: str, days: int = 500) -> list:
                         'close': float(r['收盘']),
                         'volume': float(r.get('成交量', 0)),
                     })
+                kline = _forward_adjust(kline)
         except:
             pass
 

@@ -385,4 +385,40 @@ class ApiService {
         options: Options(receiveTimeout: const Duration(seconds: 50)));
     return res.data['data'] ?? [];
   }
+
+  // ═══════════════════════════════════════
+  // 股票实时监控
+  // ═══════════════════════════════════════
+
+  /// 获取所有自选股实时行情+技术指标+资金流向
+  Future<Map<String, dynamic>> getMonitorStocks() async {
+    final res = await _dio.get('/api/monitor/stocks');
+    return res.data ?? {};
+  }
+
+  /// 获取单只股票详细数据
+  Future<Map<String, dynamic>> getStockDetail(String code) async {
+    final res = await _dio.get('/api/monitor/stocks/$code');
+    return res.data ?? {};
+  }
+
+  /// 获取自选列表
+  Future<List<dynamic>> getWatchlist() async {
+    final res = await _dio.get('/api/monitor/watchlist');
+    return res.data['watchlist'] ?? [];
+  }
+
+  /// 添加自选
+  Future<List<dynamic>> addWatchlist(String code, {String name = ''}) async {
+    final res = await _dio.post('/api/monitor/watchlist',
+        queryParameters: {'code': code, 'name': name});
+    return res.data['watchlist'] ?? [];
+  }
+
+  /// 删除自选
+  Future<List<dynamic>> removeWatchlist(String code) async {
+    final res = await _dio.delete('/api/monitor/watchlist',
+        queryParameters: {'code': code});
+    return res.data['watchlist'] ?? [];
+  }
 }

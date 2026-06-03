@@ -402,8 +402,8 @@ class ApiService {
     return res.data ?? {};
   }
 
-  /// 获取自选列表
-  Future<List<dynamic>> getWatchlist() async {
+  /// 获取监控自选列表
+  Future<List<dynamic>> getMonitorWatchlist() async {
     final res = await _dio.get('/api/monitor/watchlist');
     return res.data['watchlist'] ?? [];
   }

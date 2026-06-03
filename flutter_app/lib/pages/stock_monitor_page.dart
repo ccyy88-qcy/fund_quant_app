@@ -165,11 +165,11 @@ class _StockCard extends StatelessWidget {
               Row(
                 children: [
                   _InfoChip('涨跌', '${chgAmt >= 0 ? "+" : ""}${chgAmt.toStringAsFixed(2)}', c),
-                  _InfoChip('量', _fmt(vol / 10000, dec: 0) + '万', const Color(0xFF5BB5D8)),
-                  _InfoChip('额', _fmt(amt / 100000000, dec: 1) + '亿', const Color(0xFF5BB5D8)),
+                  _InfoChip('量', '${(vol / 10000).toStringAsFixed(0)}万', const Color(0xFF5BB5D8)),
+                  _InfoChip('额', '${(amt / 100000000).toStringAsFixed(1)}亿', const Color(0xFF5BB5D8)),
                   if (t != null) ...[
                     _InfoChip('MACD', t['macd']['trend'] ?? '-', const Color(0xFF7B6FE0)),
-                    _InfoChip('RSI', _fmt(t['rsi'], dec: 1), const Color(0xFF5BB5D8)),
+                    _InfoChip('RSI', (t['rsi'] as num?)?.toStringAsFixed(1) ?? '-', const Color(0xFF5BB5D8)),
                   ],
                 ],
               ),
@@ -177,12 +177,12 @@ class _StockCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    _FlowChip('主力', _fmt(f['main_force']! / 10000, dec: 0) + '万',
-                        (f['main_force'] as num).toDouble()),
-                    _FlowChip('特大单', _fmt(f['super_large']! / 10000, dec: 0) + '万',
-                        (f['super_large'] as num).toDouble()),
-                    _FlowChip('增仓', _fmt(f['main_ratio'], dec: 1) + '%',
-                        (f['main_ratio'] as num).toDouble()),
+                    _FlowChip('主力', '${((f['main_force'] as num?)?.toDouble() ?? 0) ~/ 10000}万',
+                        (f['main_force'] as num?)?.toDouble() ?? 0),
+                    _FlowChip('特大单', '${((f['super_large'] as num?)?.toDouble() ?? 0) ~/ 10000}万',
+                        (f['super_large'] as num?)?.toDouble() ?? 0),
+                    _FlowChip('增仓', '${(f['main_ratio'] as num?)?.toStringAsFixed(1) ?? "0.0"}%',
+                        (f['main_ratio'] as num?)?.toDouble() ?? 0),
                   ],
                 ),
               ],

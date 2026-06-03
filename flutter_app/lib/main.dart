@@ -106,8 +106,8 @@ class _MainShellState extends State<MainShell> {
               label: '策略中心',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.monitor_outlined),
-              activeIcon: Icon(Icons.monitor),
+              icon: Icon(Icons.analytics_outlined),
+              activeIcon: Icon(Icons.analytics),
               label: '股票监控',
             ),
             BottomNavigationBarItem(

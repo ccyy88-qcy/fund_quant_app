@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'dart:convert';
 
 /// 申万二级行业月度涨跌幅数据服务
 /// 直接调用东方财富 HTTP 接口，无需后端
@@ -21,7 +20,7 @@ class SectorDataService {
   static const List<Map<String, String>> sectors = [
     {'code': '801016', 'name': '种植业', 'parent': '农林牧渔'},
     {'code': '801015', 'name': '渔业', 'parent': '农林牧渔'},
-    {'code': '801011', 'name': '林业Ⅱ', 'parent': '农林牧牧渔'},
+    {'code': '801011', 'name': '林业Ⅱ', 'parent': '农林牧渔'},
     {'code': '801014', 'name': '饲料', 'parent': '农林牧渔'},
     {'code': '801012', 'name': '农产品加工', 'parent': '农林牧渔'},
     {'code': '801017', 'name': '养殖业', 'parent': '农林牧渔'},

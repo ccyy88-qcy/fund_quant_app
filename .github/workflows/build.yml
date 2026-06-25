@@ -31,15 +31,18 @@ jobs:
         flutter build apk --debug 2>&1 | tail -50
         echo "=== APK 文件检查 ==="
         ls -la build/app/outputs/apk/debug/ 2>/dev/null || echo "APK 目录不存在"
-        find build -name "*.apk" 2>/dev/null
+        find . -name "*.apk" 2>/dev/null
+        echo "=== 当前目录 ==="
+        pwd
     
     - name: Upload APK
       if: success()
       uses: actions/upload-artifact@v4
       with:
         name: fund-quant-apk
-        path: ${{ github.workspace }}/flutter_app/build/app/outputs/apk/debug/app-debug.apk
+        path: flutter_app/build/app/outputs/apk/debug/app-debug.apk
         retention-days: 1
+        if-no-files-found: warn
     
     - name: Release
       if: false && success() && github.ref == 'refs/heads/master'

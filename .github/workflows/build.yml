@@ -9,10 +9,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     
-    defaults:
-      run:
-        working-directory: flutter_app
-    
     steps:
     - uses: actions/checkout@v4
     
@@ -22,12 +18,15 @@ jobs:
         channel: 'stable'
     
     - name: Install dependencies
+      working-directory: flutter_app
       run: flutter pub get
     
     - name: Analyze code
+      working-directory: flutter_app
       run: flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | head -50
     
     - name: Build APK
+      working-directory: flutter_app
       run: flutter build apk --debug 2>&1 | tail -50
     
     - name: Upload APK
@@ -35,7 +34,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: fund-quant-apk
-        path: build/app/outputs/apk/debug/app-debug.apk
+        path: flutter_app/build/app/outputs/apk/debug/app-debug.apk
     
     - name: Release
       if: false && success() && github.ref == 'refs/heads/master'

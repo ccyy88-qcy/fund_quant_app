@@ -3,11 +3,13 @@ import '../theme/app_theme.dart';
 import 'quant_page.dart';
 import 'factor_page.dart';
 import 'rotation_page.dart';
+import 'sector_month_page.dart';
 import 'volatility_page.dart';
 import 'risk_analysis_page.dart';
 import 'build_signal_page.dart';
 import 'analysis_report_page.dart';
 import 'holding_analysis_page.dart';
+import 'fund_detail_page.dart';
 
 class QuantHomePage extends StatefulWidget {
   const QuantHomePage({super.key});
@@ -20,10 +22,19 @@ class _QuantHomePageState extends State<QuantHomePage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
+  // 基金详情页导航
+  void _navigateToFundDetail(String code, String name) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FundDetailPage(code: code, name: name),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 8, vsync: this);
+    _tabController = TabController(length: 10, vsync: this);
   }
 
   @override
@@ -50,8 +61,10 @@ class _QuantHomePageState extends State<QuantHomePage>
             Tab(text: '回测信号'),
             Tab(text: '多因子'),
             Tab(text: '行业轮动'),
+            Tab(text: '📊行业涨跌'),
             Tab(text: '波动率'),
             Tab(text: '风险分析'),
+            Tab(text: '基金详情'),
           ],
         ),
       ),
@@ -64,8 +77,31 @@ class _QuantHomePageState extends State<QuantHomePage>
           QuantPage(),
           FactorPage(),
           RotationPage(),
+          SectorMonthPage(),
           VolatilityPage(),
           RiskAnalysisPage(),
+          _FundDetailPlaceholder(),
+        ],
+      ),
+    );
+  }
+}
+
+/// 基金详情占位页 - 实际通过导航进入
+class _FundDetailPlaceholder extends StatelessWidget {
+  const _FundDetailPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.search, size: 48, color: AppTheme.textSecondary.withOpacity(0.4)),
+          const SizedBox(height: 12),
+          Text('搜索基金查看详情', style: TextStyle(color: AppTheme.textSecondary)),
+          const SizedBox(height: 8),
+          Text('在搜索页输入基金代码', style: TextStyle(color: AppTheme.textSecondary.withOpacity(0.6), fontSize: 12)),
         ],
       ),
     );
